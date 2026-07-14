@@ -1,0 +1,10 @@
+name: reddit-collector
+version: 0.1.0
+description: Collects posts from Reddit subreddits
+category: collector
+author: Archangel Team
+permissions:
+  - REDDIT_CLIENT_ID
+  - REDDIT_CLIENT_SECRET
+  - REDDIT_USER_AGENT
+status: enabled

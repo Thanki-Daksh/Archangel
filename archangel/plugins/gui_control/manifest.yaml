@@ -1,0 +1,9 @@
+name: gui-control
+version: 0.1.0
+description: Autonomous GUI control via vision models - sees screen, takes actions
+category: automation
+author: Archangel Team
+permissions:
+  - GEMINI
+  - GROQ
+status: enabled

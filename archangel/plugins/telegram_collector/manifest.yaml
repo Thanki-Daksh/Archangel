@@ -1,0 +1,9 @@
+name: telegram-collector
+version: 0.1.0
+description: Collects posts from Telegram channels
+category: collector
+author: Archangel Team
+permissions:
+  - TELEGRAM_BOT_TOKEN
+  - TELEGRAM_CHAT_ID
+status: enabled

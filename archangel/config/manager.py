@@ -4,6 +4,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_DIR = Path("configs")
@@ -22,6 +24,7 @@ def load_config(config_dir: str | Path | None = None) -> dict[str, Any]:
     dict
         Merged configuration dictionary.
     """
+    load_dotenv()
     config_dir = Path(config_dir) if config_dir else DEFAULT_CONFIG_DIR
 
     if not config_dir.exists():

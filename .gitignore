@@ -30,5 +30,8 @@ data/*.cache
 # Config overrides (user-specific)
 configs/local.yaml
 
+# Environment variables
+.env
+
 # UV
 uv.lock

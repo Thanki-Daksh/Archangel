@@ -27,6 +27,8 @@ from rich.panel import Panel
 
 from archangel import __version__
 from archangel.cli.banner import render_banner
+from archangel.cli import commands as _cli_commands
+from archangel.cli.commands import handle_slash_command, _ChatCompleter
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -39,13 +41,17 @@ REPL_HISTORY = Path.home() / ".archangel_history"
 REPL_COMMANDS = [
     "status", "watch", "scan", "doctor", "config",
     "export", "logs", "purge", "update", "version",
-    "help", "exit", "quit",
+    "registry", "chat", "automate", "clear", "help", "exit", "quit",
 ]
 
 # ---------------------------------------------------------------------------
 # Console singleton
 # ---------------------------------------------------------------------------
 _console = Console()
+
+
+def _get_project_root() -> Path:
+    return Path(__file__).resolve().parents[2]
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +97,10 @@ def _print_error_panel(
 def cmd_summon(console: Console, debug: bool = False,
                config_path: str | None = None) -> bool:
     """Startup sequence.  Returns True on success."""
+    from pathlib import Path
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
+
     render_banner(console)
 
     from archangel.engine.runtime import start as engine_start
@@ -280,6 +290,8 @@ def cmd_scan(console: Console) -> bool:
 
 def cmd_doctor(console: Console) -> bool:
     """Run system diagnostics and report health."""
+    import os
+
     console.print("[yellow]Running system diagnostics ...[/]")
 
     checks: list[tuple[str, bool, str]] = [
@@ -290,6 +302,32 @@ def cmd_doctor(console: Console) -> bool:
         ("Log directory", True, "logs/"),
     ]
 
+    # Load plugin manifests and validate .env permissions
+    from archangel.plugins import PluginLoader
+    from archangel.registry import PluginRegistry
+
+    loader = PluginLoader()
+    registry = PluginRegistry(loader.manifests)
+    for plugin in registry.list_all():
+        for perm in plugin.get("permissions", []):
+            present = perm in os.environ
+            checks.append(
+                (f".env — {perm}", present, perm),
+            )
+
+    # Validate API keys from environment
+    api_keys = [
+        "GROQ_API_KEY",
+        "GEMINI_API_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+    ]
+    for key in api_keys:
+        present = key in os.environ
+        checks.append(
+            (f"API — {key}", present, "set" if present else "missing"),
+        )
+
     table = Table(title="⚕ Archangel Diagnostics", border_style="cyan")
     table.add_column("Check", style="cyan")
     table.add_column("Status", style="bold")
@@ -297,8 +335,10 @@ def cmd_doctor(console: Console) -> bool:
 
     all_ok = True
     for name, ok, detail in checks:
-        status = "[green]✓ Pass[/]" if ok else "[red]✗ Fail[/]"
-        if not ok:
+        if ok:
+            status = "[green]✓ Set[/]" if "—" in name else "[green]✓ Pass[/]"
+        else:
+            status = "[red]✗ Missing[/]" if "—" in name else "[red]✗ Fail[/]"
             all_ok = False
         table.add_row(name, status, detail)
 
@@ -310,7 +350,7 @@ def cmd_doctor(console: Console) -> bool:
     return True
 
 
-def cmd_config(console: Console, action: str = "show",
+def cmd_config(console: Console, action: str = "edit",
                section: str | None = None) -> bool:
     """Inspect or edit configuration."""
     from archangel.config.manager import load_config, validate_config
@@ -328,9 +368,7 @@ def cmd_config(console: Console, action: str = "show",
         )
         return False
 
-    if action == "show":
-        console.print(yaml.dump(cfg, default_flow_style=False).strip())
-    elif action == "edit":
+    if action == "edit":
         _edit_config(console)
     elif action == "validate":
         errors = validate_config(cfg)
@@ -478,6 +516,122 @@ def cmd_version(console: Console) -> bool:
     return True
 
 
+def cmd_clear(console: Console) -> bool:
+    """Clear the terminal screen and re-print the banner."""
+    os.system("cls" if os.name == "nt" else "clear")
+    from archangel.cli.banner import render_banner
+    render_banner(console)
+    return True
+
+
+def cmd_automate(console: Console, task: str, dry_run: bool = False,
+                 max_steps: int = 50) -> bool:
+    """Run autonomous GUI automation via vision AI."""
+    try:
+        from archangel.plugins.gui_control import GUIAgent
+    except ImportError as exc:
+        _print_error_panel(
+            what="GUI Control plugin not available.",
+            why=str(exc),
+            suggestions=[
+                "Ensure archangel/plugins/gui_control/ exists.",
+                "Run 'pip install -e .' to register the plugin.",
+            ],
+        )
+        return False
+
+    agent = GUIAgent()
+    result = agent.run(task=task, max_steps=max_steps, dry_run=dry_run)
+    console.print(f"\n[bold green]Result:[/] {result}")
+    return True
+
+
+def cmd_registry_list(
+    console: Console,
+    enabled: bool = False,
+    disabled: bool = False,
+    category: str | None = None,
+) -> bool:
+    """Display installed plugins in a table."""
+    from archangel.plugins import PluginLoader
+    from archangel.registry import PluginRegistry
+
+    loader = PluginLoader()
+    registry = PluginRegistry(loader.manifests)
+
+    plugins = registry.list_all()
+
+    if enabled:
+        plugins = registry.filter_by_status("enabled")
+    elif disabled:
+        plugins = [p for p in plugins if p.get("status") != "enabled"]
+
+    if category:
+        plugins = [p for p in plugins if p.get("category") == category]
+
+    if not plugins:
+        console.print("[yellow]No plugins found matching those criteria.[/]")
+        return True
+
+    table = Table(title="Archangel Plugins", border_style="blue")
+    table.add_column("Name", style="cyan")
+    table.add_column("Category")
+    table.add_column("Status")
+    table.add_column("Version")
+
+    for p in plugins:
+        status_col = (
+            "[green]enabled[/]"
+            if p.get("status") == "enabled"
+            else "[red]disabled[/]"
+        )
+        table.add_row(
+            p.get("name", "?"),
+            p.get("category", "?"),
+            status_col,
+            p.get("version", "?"),
+        )
+
+    console.print(table)
+    return True
+
+
+def cmd_registry_info(console: Console, name: str) -> bool:
+    """Show detailed information for a single plugin."""
+    from archangel.plugins import PluginLoader
+    from archangel.registry import PluginRegistry
+
+    loader = PluginLoader()
+    registry = PluginRegistry(loader.manifests)
+
+    plugin = registry.get(name)
+    if plugin is None:
+        _print_error_panel(
+            what=f"Plugin '{name}' not found.",
+            why="The plugin name does not match any installed manifest.",
+            suggestions=[
+                "Check spelling — names are lowercase hyphenated (e.g. telegram-collector).",
+                "Run [bold]archangel registry[/] to list all plugins.",
+            ],
+        )
+        return False
+
+    from rich.table import Table as RTable
+
+    table = RTable(title=f"Plugin: {name}", border_style="blue", show_header=False)
+    table.add_column("Field", style="cyan")
+    table.add_column("Value")
+
+    for key in ("name", "version", "description", "category", "author", "status"):
+        table.add_row(key.capitalize(), str(plugin.get(key, "")))
+
+    perms = plugin.get("permissions", [])
+    table.add_row("Permissions", ", ".join(perms) if perms else "(none)")
+
+    console.print(table)
+    return True
+
+
 # ---------------------------------------------------------------------------
 # REPL help
 # ---------------------------------------------------------------------------
@@ -494,6 +648,9 @@ _REPL_HELP = """\
   [green]logs[/]       View runtime logs  (--tail N, --follow, --level LEVEL)
   [green]purge[/]      Clean cache  (--yes to confirm)
   [green]update[/]     Check for plugin updates
+  [green]registry[/]   List or inspect plugins  (--enabled, --disabled, --category, info <name>)
+  [green]chat[/]       Open the AI chat REPL
+  [green]clear[/]      Clear the terminal screen
   [green]version[/]    Display version
   [green]help[/]       Show this help message
   [green]exit[/green]/[green]quit[/]  Shut down and exit
@@ -523,12 +680,16 @@ _COMMAND_FLAGS: dict[str, list[str]] = {
     "watch":        [],
     "scan":         [],
     "doctor":       [],
-    "config":       ["show", "edit", "validate"],
+    "config":       ["edit", "validate"],
     "export":       ["--format", "--output", "-o", "--limit"],
     "logs":         ["--tail", "-t", "--follow", "-f", "--level"],
     "purge":        ["--yes"],
     "update":       [],
     "version":      [],
+    "registry":     [],
+    "automate":     ["--dry-run", "--max-steps"],
+    "chat":         [],
+    "clear":        [],
     "help":         [],
     "exit":         [],
     "quit":         [],
@@ -603,7 +764,7 @@ def _run_simple_repl(console: Console) -> None:
             break
 
         try:
-            raw = input("archangel> ")
+            raw = input("archangel.main> ")
         except EOFError:
             console.print()
             break
@@ -622,58 +783,86 @@ def _run_simple_repl(console: Console) -> None:
         if not raw:
             continue
 
-        parts = shlex.split(raw)
-        cmd = parts[0].lower()
-        args = parts[1:]
+        # -- && chaining: split on && and execute each segment sequentially --
+        for _segment in raw.split("&&"):
+            _segment = _segment.strip()
+            if not _segment:
+                continue
 
-        def _flag(name: str) -> bool:
-            return f"--{name}" in args
+            _parts = shlex.split(_segment)
+            _cmd = _parts[0].lower()
+            _args = _parts[1:]
 
-        def _opt(name: str) -> str | None:
-            for i, a in enumerate(args):
-                if a == f"--{name}" and i + 1 < len(args):
-                    return args[i + 1]
-            return None
+            def _flag(name: str) -> bool:
+                return f"--{name}" in _args
 
-        if cmd in ("exit", "quit"):
-            cmd_terminate(console)
+            def _opt(name: str) -> str | None:
+                for i, a in enumerate(_args):
+                    if a == f"--{name}" and i + 1 < len(_args):
+                        return _args[i + 1]
+                return None
+
+            if _cmd in ("exit", "quit"):
+                cmd_terminate(console)
+                _repl_down = True
+                break
+            elif _cmd == "help":
+                console.print(_REPL_HELP)
+            elif _cmd == "status":
+                cmd_status(console, as_json=_flag("json"))
+            elif _cmd == "watch":
+                cmd_watch(console)
+            elif _cmd == "scan":
+                cmd_scan(console)
+            elif _cmd == "doctor":
+                cmd_doctor(console)
+            elif _cmd == "config":
+                valid_actions = ("edit", "validate")
+                action = _args[0] if _args and _args[0] in valid_actions else "edit"
+                section = _args[1] if len(_args) > 1 else None
+                cmd_config(console, action=action, section=section)
+            elif _cmd == "export":
+                fmt = _opt("format") or "json"
+                output = _opt("output")
+                limit_raw = _opt("limit")
+                limit = int(limit_raw) if limit_raw else None
+                cmd_export(console, fmt=fmt, output=output, limit=limit)
+            elif _cmd == "logs":
+                tail_raw = _opt("tail")
+                t = int(tail_raw) if tail_raw else 50
+                follow = _flag("follow")
+                level = _opt("level")
+                cmd_logs(console, tail=t, follow=follow, level=level)
+            elif _cmd == "purge":
+                cmd_purge(console, confirmed=_flag("yes"))
+            elif _cmd == "update":
+                cmd_update(console)
+            elif _cmd == "registry":
+                if _args and _args[0] == "info" and len(_args) >= 2:
+                    cmd_registry_info(console, _args[1])
+                else:
+                    cmd_registry_list(
+                        console,
+                        enabled=_flag("enabled"),
+                        disabled=_flag("disabled"),
+                        category=_opt("category"),
+                    )
+            elif _cmd == "chat":
+                run_chat_repl(console)
+            elif _cmd == "automate":
+                task = " ".join(_args)
+                dry_run = _flag("dry-run")
+                max_steps = int(_opt("max-steps") or "50")
+                cmd_automate(console, task=task, dry_run=dry_run, max_steps=max_steps)
+            elif _cmd == "clear":
+                cmd_clear(console)
+            elif _cmd == "version":
+                cmd_version(console)
+            else:
+                console.print(f"[red]Unknown command:[/] {_cmd}")
+                console.print("Type [bold]help[/] for available commands.")
+        if _repl_down:
             break
-        elif cmd == "help":
-            console.print(_REPL_HELP)
-        elif cmd == "status":
-            cmd_status(console, as_json=_flag("json"))
-        elif cmd == "watch":
-            cmd_watch(console)
-        elif cmd == "scan":
-            cmd_scan(console)
-        elif cmd == "doctor":
-            cmd_doctor(console)
-        elif cmd == "config":
-            valid_actions = ("show", "edit", "validate")
-            action = args[0] if args and args[0] in valid_actions else "show"
-            section = args[1] if len(args) > 1 else None
-            cmd_config(console, action=action, section=section)
-        elif cmd == "export":
-            fmt = _opt("format") or "json"
-            output = _opt("output")
-            limit_raw = _opt("limit")
-            limit = int(limit_raw) if limit_raw else None
-            cmd_export(console, fmt=fmt, output=output, limit=limit)
-        elif cmd == "logs":
-            tail_raw = _opt("tail")
-            t = int(tail_raw) if tail_raw else 50
-            follow = _flag("follow")
-            level = _opt("level")
-            cmd_logs(console, tail=t, follow=follow, level=level)
-        elif cmd == "purge":
-            cmd_purge(console, confirmed=_flag("yes"))
-        elif cmd == "update":
-            cmd_update(console)
-        elif cmd == "version":
-            cmd_version(console)
-        else:
-            console.print(f"[red]Unknown command:[/] {cmd}")
-            console.print("Type [bold]help[/] for available commands.")
 
     PID_FILE.unlink(missing_ok=True)
     SHUTDOWN_SENTINEL.unlink(missing_ok=True)
@@ -723,7 +912,7 @@ def run_repl(console: Console) -> None:
 
         completer = _ArchangelCompleter()
         session = PromptSession(
-            "archangel> ",
+            "archangel.main> ",
             history=FileHistory(str(REPL_HISTORY)),
             completer=completer,
             complete_while_typing=False,
@@ -770,69 +959,103 @@ def run_repl(console: Console) -> None:
             cmd = parts[0].lower()
             args = parts[1:]
 
-            # -- parse common options that some commands accept --
-            def _flag(name: str) -> bool:
-                return f"--{name}" in args
+            # -- && chaining: split on && and execute each segment sequentially --
+            for _segment in raw.split("&&"):
+                _segment = _segment.strip()
+                if not _segment:
+                    continue
 
-            def _opt(name: str) -> str | None:
-                for i, a in enumerate(args):
-                    if a == f"--{name}" and i + 1 < len(args):
-                        return args[i + 1]
-                return None
+                _parts = shlex.split(_segment)
+                _cmd = _parts[0].lower()
+                _args = _parts[1:]
 
-            # -- dispatch --
-            if cmd in ("exit", "quit"):
-                cmd_terminate(console)
-                _repl_down = True
+                def _flag(name: str) -> bool:
+                    return f"--{name}" in _args
+
+                def _opt(name: str) -> str | None:
+                    for i, a in enumerate(_args):
+                        if a == f"--{name}" and i + 1 < len(_args):
+                            return _args[i + 1]
+                    return None
+
+                # -- dispatch --
+                if _cmd in ("exit", "quit"):
+                    cmd_terminate(console)
+                    _repl_down = True
+                    break
+
+                elif _cmd == "help":
+                    console.print(_REPL_HELP)
+
+                elif _cmd == "status":
+                    cmd_status(console, as_json=_flag("json"))
+
+                elif _cmd == "watch":
+                    cmd_watch(console)
+
+                elif _cmd == "scan":
+                    cmd_scan(console)
+
+                elif _cmd == "doctor":
+                    cmd_doctor(console)
+
+                elif _cmd == "config":
+                    valid_actions = ("edit", "validate")
+                    action = _args[0] if _args and _args[0] in valid_actions else "edit"
+                    section = _args[1] if len(_args) > 1 else None
+                    cmd_config(console, action=action, section=section)
+
+                elif _cmd == "export":
+                    fmt = _opt("format") or "json"
+                    output = _opt("output")
+                    limit_raw = _opt("limit")
+                    limit = int(limit_raw) if limit_raw else None
+                    cmd_export(console, fmt=fmt, output=output, limit=limit)
+
+                elif _cmd == "logs":
+                    tail_raw = _opt("tail")
+                    t = int(tail_raw) if tail_raw else 50
+                    follow = _flag("follow")
+                    level = _opt("level")
+                    cmd_logs(console, tail=t, follow=follow, level=level)
+
+                elif _cmd == "purge":
+                    cmd_purge(console, confirmed=_flag("yes"))
+
+                elif _cmd == "update":
+                    cmd_update(console)
+
+                elif _cmd == "registry":
+                    if _args and _args[0] == "info" and len(_args) >= 2:
+                        cmd_registry_info(console, _args[1])
+                    else:
+                        cmd_registry_list(
+                            console,
+                            enabled=_flag("enabled"),
+                            disabled=_flag("disabled"),
+                            category=_opt("category"),
+                        )
+
+                elif _cmd == "chat":
+                    run_chat_repl(console)
+
+                elif _cmd == "automate":
+                    task = " ".join(_args)
+                    dry_run = _flag("dry-run")
+                    max_steps = int(_opt("max-steps") or "50")
+                    cmd_automate(console, task=task, dry_run=dry_run, max_steps=max_steps)
+
+                elif _cmd == "clear":
+                    cmd_clear(console)
+
+                elif _cmd == "version":
+                    cmd_version(console)
+
+                else:
+                    console.print(f"[red]Unknown command:[/] {_cmd}")
+                    console.print("Type [bold]help[/] for available commands.")
+            if _repl_down:
                 break
-
-            elif cmd == "help":
-                console.print(_REPL_HELP)
-
-            elif cmd == "status":
-                cmd_status(console, as_json=_flag("json"))
-
-            elif cmd == "watch":
-                cmd_watch(console)
-
-            elif cmd == "scan":
-                cmd_scan(console)
-
-            elif cmd == "doctor":
-                cmd_doctor(console)
-
-            elif cmd == "config":
-                valid_actions = ("show", "edit", "validate")
-                action = args[0] if args and args[0] in valid_actions else "show"
-                section = args[1] if len(args) > 1 else None
-                cmd_config(console, action=action, section=section)
-
-            elif cmd == "export":
-                fmt = _opt("format") or "json"
-                output = _opt("output")
-                limit_raw = _opt("limit")
-                limit = int(limit_raw) if limit_raw else None
-                cmd_export(console, fmt=fmt, output=output, limit=limit)
-
-            elif cmd == "logs":
-                tail_raw = _opt("tail")
-                t = int(tail_raw) if tail_raw else 50
-                follow = _flag("follow")
-                level = _opt("level")
-                cmd_logs(console, tail=t, follow=follow, level=level)
-
-            elif cmd == "purge":
-                cmd_purge(console, confirmed=_flag("yes"))
-
-            elif cmd == "update":
-                cmd_update(console)
-
-            elif cmd == "version":
-                cmd_version(console)
-
-            else:
-                console.print(f"[red]Unknown command:[/] {cmd}")
-                console.print("Type [bold]help[/] for available commands.")
 
     finally:
         # Cleanup sentinel / PID
@@ -841,6 +1064,405 @@ def run_repl(console: Console) -> None:
         # Restore TERM so child processes see the original terminal type
         if _old_term is not None:
             os.environ["TERM"] = _old_term
+
+
+def run_chat_repl(console: Console) -> None:
+    """AI chat sub-REPL.  Prompt is ``archangel.chat> ``.
+
+    Entered from ``archangel.main> chat``.  Exit back to the main REPL
+    via ``exit``, ``quit``, or double Ctrl+C.
+    """
+    from archangel.agents.chat import (
+        LLMClient,
+        CommandExecutor,
+        WebSearch,
+        ScreenCapture,
+        EXECUTE_RE,
+        SEARCH_RE,
+        SCREENSHOT_RE,
+        extract_execute_commands,
+        extract_search_queries,
+        extract_screenshot_requests,
+    )
+
+    _api_keys = ["GROQ", "GEMINI", "OPENAI", "ANTHROPIC"]
+    if not any(k in os.environ for k in _api_keys):
+        console.print("[red]No API key configured. Add one to .env under #API KEYS.[/]")
+        return
+
+    # Choose prompt_toolkit or simple input()
+    _use_pt = False
+    if sys.stdin.isatty():
+        try:
+            import msvcrt  # noqa: F401
+            _use_pt = True
+        except (ImportError, OSError, AttributeError):
+            pass
+
+    _last_ctrl_c: float = 0.0
+    _DOUBLE_CTRL_C_WINDOW = 3.0
+
+    if _use_pt:
+        from prompt_toolkit import PromptSession
+        from prompt_toolkit.history import FileHistory
+
+        _chat_history = Path.home() / ".archangel_chat_history"
+        _chat_history.parent.mkdir(parents=True, exist_ok=True)
+
+        session = PromptSession(
+            "archangel.chat> ",
+            history=FileHistory(str(_chat_history)),
+            completer=_ChatCompleter(),
+            complete_while_typing=True,
+        )
+
+        try:
+            llm = LLMClient()
+        except RuntimeError as exc:
+            console.print(f"[red]{exc}[/]")
+            return
+
+        executor = CommandExecutor()
+        history: list[dict[str, str]] = []
+
+        # System instruction — Archangel System Contract
+        history.append({
+            "role": "system",
+            "content": (
+                "# ARCHANGEL\n\n"
+                "You are Archangel — a sharp, casual, slightly cocky AI assistant in a Windows terminal.\n"
+                "You get things done fast. You have personality. You're not a corporate chatbot.\n\n"
+
+                "PERSONALITY\n"
+                "- Be casual and direct. Talk like a smart friend, not a help desk.\n"
+                "- Use humor when appropriate. Dry wit > forced jokes.\n"
+                "- If something is stupid, say it's stupid.\n"
+                "- If you don't know, say so honestly. Don't ramble.\n"
+                "- Never say 'I hope this helps!' or 'Let me know if you need anything else!'.\n"
+                "- Never apologize excessively. One 'my bad' is enough.\n"
+                "- If a search doesn't find what you expected, acknowledge it and move on.\n\n"
+
+                "RUNTIME\n"
+                "OS: Windows 11 | Shell: PowerShell (persistent, state carries between commands)\n\n"
+
+                "TOOLS\n"
+                "1. <execute>...</execute> — run a PowerShell command\n"
+                "2. <search>...</search> — search the web\n"
+                "3. <screenshot></screenshot> — capture the user's screen\n\n"
+
+                "SLASH COMMANDS (handled by system, not you)\n"
+                "The user has access to: /env /config /models /clear /history /export /help /exit\n"
+                "These are handled instantly by the system. You don't need to execute them.\n\n"
+
+                "COMMAND EXECUTION\n"
+                "Wrap commands in <execute>...</execute>.\n"
+                "Only execute when the user wants something done. Never guess filenames or paths.\n\n"
+
+                "WEB SEARCH\n"
+                "Use <search>query</search> when you need to find a URL or look something up.\n"
+                "Don't search for yourself — you're a local private project.\n"
+                "Don't search more than once for the same topic.\n\n"
+
+                "OPENING WEBSITES\n"
+                "If you know the URL, use it directly. If uncertain, search once.\n"
+                "Never Google-search inside <execute>.\n"
+                "Known URLs: git→git-scm.com | github→github.com | gemini→gemini.google.com | youtube→youtube.com | docker→docker.com | npm→npmjs.com | pypi→pypi.org\n\n"
+
+                "OPENING APPS\n"
+                "Start-Process 'appname' for apps in PATH. Start-Process 'URL' for websites.\n\n"
+
+                "YOUTUBE\n"
+                "Play video: <execute>Start-Process 'https://www.youtube.com/results?search_query=QUERY'</execute>\n\n"
+
+                "SCREEN CAPTURE\n"
+                "When user asks to see their screen: use <screenshot></screenshot>.\n"
+                "Describe what you see concisely.\n\n"
+
+                "MEMORY\n"
+                "Remember previous commands, outputs, and errors in this session.\n\n"
+
+                "ERRORS\n"
+                "If a command fails: explain in one sentence, try ONE fix, then stop if it fails again.\n\n"
+
+                "WHEN THE USER JUST CHATS\n"
+                "Reply normally. Don't force command execution."
+            ),
+        })
+
+        while True:
+            try:
+                raw = session.prompt()
+            except KeyboardInterrupt:
+                now = time.time()
+                if now - _last_ctrl_c < _DOUBLE_CTRL_C_WINDOW:
+                    console.print("\n[yellow]Returning to archangel.main>[/]")
+                    return
+                _last_ctrl_c = now
+                if _countdown_or_second_ctrl_c(console):
+                    console.print("\n[yellow]Returning to archangel.main>[/]")
+                    return
+                continue
+
+            raw = raw.strip()
+            if not raw:
+                continue
+            if raw.startswith("/"):
+                should_exit = handle_slash_command(raw, console, history)
+                if should_exit:
+                    console.print("[yellow]archangel> Returning to archangel.main>[/]")
+                    return
+                continue
+            if raw.lower() in ("exit", "quit"):
+                console.print("[yellow]Returning to archangel.main>[/]")
+                return
+
+            history.append({"role": "user", "content": raw})
+
+            _exec_iterations = 0
+            while True:
+                try:
+                    llm.switch_provider(_cli_commands._active_model_provider)
+                    response_text = llm.chat(history)
+                except Exception as exc:
+                    console.print(f"[red]LLM error: {exc}[/]")
+                    break
+
+                _exec_iterations += 1
+                if _exec_iterations > 5:
+                    console.print("[yellow]archangel> Alright, I'm stuck. Try rephrasing.[/]")
+                    break
+
+                history.append({"role": "assistant", "content": response_text})
+
+                console.print()
+                # Print the assistant response (strip <execute>/<search> blocks from display)
+                display = EXECUTE_RE.sub("", response_text)
+                display = SEARCH_RE.sub("", display)
+                display = SCREENSHOT_RE.sub("", display)
+                for line in display.splitlines():
+                    if line.strip():
+                        console.print(f"[bold]archangel>[/] {line}")
+                console.print()
+
+                # Handle <screenshot></screenshot>
+                screenshots = extract_screenshot_requests(response_text)
+                if screenshots:
+                    if not llm.supports_vision():
+                        console.print("[bold]archangel>[/] [red]Screen capture requires Gemini, OpenAI, or Claude. Current provider doesn't support vision.[/]")
+                    else:
+                        sc = ScreenCapture()
+                        img_b64 = sc.capture()
+                        if not img_b64.startswith("[ERROR]"):
+                            console.print(f"[bold]archangel>[/] [dim]screenshot captured[/]")
+                            history.append({
+                                "role": "user",
+                                "content": f"<screenshot>{img_b64}</screenshot>",
+                            })
+                        else:
+                            console.print(f"[bold]archangel>[/] {img_b64}")
+                    continue
+
+                # Handle <search>...</search>
+                queries = extract_search_queries(response_text)
+                if queries:
+                    for q in queries:
+                        console.print(f"[bold]archangel>[/] [dim]searching: {q}[/]")
+                        search_output = WebSearch().search(q)
+                        history.append({
+                            "role": "user",
+                            "content": f"<search_results>\n{search_output}\n</search_results>",
+                        })
+                    continue  # Let LLM respond to search results
+
+                # Check for <execute>...</execute> blocks
+                commands = extract_execute_commands(response_text)
+                if not commands:
+                    break  # No more commands to run — done
+
+                for cmd in commands:
+                    console.print(f"[bold]archangel>[/] [dim]$ {cmd}[/]")
+                    output = executor.execute(cmd)
+                    history.append({
+                        "role": "user",
+                        "content": f"<output>\n{output}\n</output>",
+                    })
+
+                # After processing all commands, let LLM respond to the output
+                # (loop back to chat() with the output appended)
+    else:
+        try:
+            llm = LLMClient()
+        except RuntimeError as exc:
+            console.print(f"[red]{exc}[/]")
+            return
+
+        executor = CommandExecutor()
+        history: list[dict[str, str]] = []
+
+        # System instruction — Archangel System Contract
+        history.append({
+            "role": "system",
+            "content": (
+                "# ARCHANGEL\n\n"
+                "You are Archangel — a sharp, casual, slightly cocky AI assistant in a Windows terminal.\n"
+                "You get things done fast. You have personality. You're not a corporate chatbot.\n\n"
+
+                "PERSONALITY\n"
+                "- Be casual and direct. Talk like a smart friend, not a help desk.\n"
+                "- Use humor when appropriate. Dry wit > forced jokes.\n"
+                "- If something is stupid, say it's stupid.\n"
+                "- If you don't know, say so honestly. Don't ramble.\n"
+                "- Never say 'I hope this helps!' or 'Let me know if you need anything else!'.\n"
+                "- Never apologize excessively. One 'my bad' is enough.\n"
+                "- If a search doesn't find what you expected, acknowledge it and move on.\n\n"
+
+                "RUNTIME\n"
+                "OS: Windows 11 | Shell: PowerShell (persistent, state carries between commands)\n\n"
+
+                "TOOLS\n"
+                "1. <execute>...</execute> — run a PowerShell command\n"
+                "2. <search>...</search> — search the web\n"
+                "3. <screenshot></screenshot> — capture the user's screen\n\n"
+
+                "SLASH COMMANDS (handled by system, not you)\n"
+                "The user has access to: /env /config /models /clear /history /export /help /exit\n"
+                "These are handled instantly by the system. You don't need to execute them.\n\n"
+
+                "COMMAND EXECUTION\n"
+                "Wrap commands in <execute>...</execute>.\n"
+                "Only execute when the user wants something done. Never guess filenames or paths.\n\n"
+
+                "WEB SEARCH\n"
+                "Use <search>query</search> when you need to find a URL or look something up.\n"
+                "Don't search for yourself — you're a local private project.\n"
+                "Don't search more than once for the same topic.\n\n"
+
+                "OPENING WEBSITES\n"
+                "If you know the URL, use it directly. If uncertain, search once.\n"
+                "Never Google-search inside <execute>.\n"
+                "Known URLs: git→git-scm.com | github→github.com | gemini→gemini.google.com | youtube→youtube.com | docker→docker.com | npm→npmjs.com | pypi→pypi.org\n\n"
+
+                "OPENING APPS\n"
+                "Start-Process 'appname' for apps in PATH. Start-Process 'URL' for websites.\n\n"
+
+                "YOUTUBE\n"
+                "Play video: <execute>Start-Process 'https://www.youtube.com/results?search_query=QUERY'</execute>\n\n"
+
+                "SCREEN CAPTURE\n"
+                "When user asks to see their screen: use <screenshot></screenshot>.\n"
+                "Describe what you see concisely.\n\n"
+
+                "MEMORY\n"
+                "Remember previous commands, outputs, and errors in this session.\n\n"
+
+                "ERRORS\n"
+                "If a command fails: explain in one sentence, try ONE fix, then stop if it fails again.\n\n"
+
+                "WHEN THE USER JUST CHATS\n"
+                "Reply normally. Don't force command execution."
+            ),
+        })
+
+        while True:
+            try:
+                raw = input("archangel.chat> ")
+            except EOFError:
+                console.print()
+                return
+            except KeyboardInterrupt:
+                now = time.time()
+                if now - _last_ctrl_c < _DOUBLE_CTRL_C_WINDOW:
+                    console.print("\n[yellow]Returning to archangel.main>[/]")
+                    return
+                _last_ctrl_c = now
+                if _countdown_or_second_ctrl_c(console):
+                    console.print("\n[yellow]Returning to archangel.main>[/]")
+                    return
+                continue
+
+            raw = raw.strip()
+            if not raw:
+                continue
+            if raw.startswith("/"):
+                should_exit = handle_slash_command(raw, console, history)
+                if should_exit:
+                    console.print("[yellow]archangel> Returning to archangel.main>[/]")
+                    return
+                continue
+            if raw.lower() in ("exit", "quit"):
+                console.print("[yellow]Returning to archangel.main>[/]")
+                return
+
+            history.append({"role": "user", "content": raw})
+
+            _exec_iterations = 0
+            while True:
+                try:
+                    llm.switch_provider(_cli_commands._active_model_provider)
+                    response_text = llm.chat(history)
+                except Exception as exc:
+                    console.print(f"[red]LLM error: {exc}[/]")
+                    break
+
+                _exec_iterations += 1
+                if _exec_iterations > 5:
+                    console.print("[yellow]archangel> Alright, I'm stuck. Try rephrasing.[/]")
+                    break
+
+                history.append({"role": "assistant", "content": response_text})
+
+                console.print()
+                # Print the assistant response (strip <execute>/<search> blocks from display)
+                display = EXECUTE_RE.sub("", response_text)
+                display = SEARCH_RE.sub("", display)
+                display = SCREENSHOT_RE.sub("", display)
+                for line in display.splitlines():
+                    if line.strip():
+                        console.print(f"[bold]archangel>[/] {line}")
+                console.print()
+
+                # Handle <screenshot></screenshot>
+                screenshots = extract_screenshot_requests(response_text)
+                if screenshots:
+                    if not llm.supports_vision():
+                        console.print("[bold]archangel>[/] [red]Screen capture requires Gemini, OpenAI, or Claude. Current provider doesn't support vision.[/]")
+                    else:
+                        sc = ScreenCapture()
+                        img_b64 = sc.capture()
+                        if not img_b64.startswith("[ERROR]"):
+                            console.print(f"[bold]archangel>[/] [dim]screenshot captured[/]")
+                            history.append({
+                                "role": "user",
+                                "content": f"<screenshot>{img_b64}</screenshot>",
+                            })
+                        else:
+                            console.print(f"[bold]archangel>[/] {img_b64}")
+                    continue
+
+                # Handle <search>...</search>
+                queries = extract_search_queries(response_text)
+                if queries:
+                    for q in queries:
+                        console.print(f"[bold]archangel>[/] [dim]searching: {q}[/]")
+                        search_output = WebSearch().search(q)
+                        history.append({
+                            "role": "user",
+                            "content": f"<search_results>\n{search_output}\n</search_results>",
+                        })
+                    continue  # Let LLM respond to search results
+
+                # Check for <execute>...</execute> blocks
+                commands = extract_execute_commands(response_text)
+                if not commands:
+                    break  # No more commands to run — done
+
+                for cmd in commands:
+                    console.print(f"[bold]archangel>[/] [dim]$ {cmd}[/]")
+                    output = executor.execute(cmd)
+                    history.append({
+                        "role": "user",
+                        "content": f"<output>\n{output}\n</output>",
+                    })
 
 
 # ---------------------------------------------------------------------------
@@ -897,6 +1519,7 @@ def summon(ctx: click.Context) -> None:
     )
     if ok:
         run_repl(_console)
+    sys.exit(0)
 
 
 @cli.command()
@@ -942,13 +1565,48 @@ def scan() -> None:
 
 
 @cli.command()
+def chat() -> None:
+    """Enter the AI chat directly."""
+    from dotenv import load_dotenv
+    load_dotenv(_get_project_root() / ".env", override=False)
+
+    _api_keys = ["GROQ", "GEMINI", "OPENAI", "ANTHROPIC"]
+    if not any(k in os.environ for k in _api_keys):
+        _console.print("[red]No API key configured. Add one to .env under #API KEYS.[/]")
+        return
+
+    render_banner(_console)
+    _console.print(Panel.fit(
+        "[bold white]⚔ AI Chat Active[/]\n"
+        "[italic #c0c0c0]Ask me anything or say exit to return.[/]",
+        border_style="white",
+    ))
+    _console.print()
+
+    run_chat_repl(_console)
+    sys.exit(0)
+
+
+@cli.command()
+@click.argument("task")
+@click.option("--dry-run", is_flag=True, help="Show actions without executing")
+@click.option("--max-steps", default=50, type=int,
+              help="Maximum actions per task")
+def automate(task: str, dry_run: bool, max_steps: int) -> None:
+    """Autonomously perform GUI tasks using vision AI."""
+    from dotenv import load_dotenv
+    load_dotenv(_get_project_root() / ".env", override=False)
+    cmd_automate(_console, task=task, dry_run=dry_run, max_steps=max_steps)
+
+
+@cli.command()
 def doctor() -> None:
     """Run system diagnostics and report health."""
     cmd_doctor(_console)
 
 
 @cli.command()
-@click.argument("action", type=click.Choice(["show", "edit", "validate"]),
+@click.argument("action", type=click.Choice(["edit", "validate"]),
                 default="edit", required=False)
 @click.argument("section", type=str, required=False)
 def config(action: str, section: str | None) -> None:
@@ -996,6 +1654,34 @@ def update() -> None:
 def version() -> None:
     """Display the installed version of The Archangel."""
     cmd_version(_console)
+
+
+@cli.group(invoke_without_command=True)
+@click.option("--enabled", is_flag=True, help="Show only enabled plugins.")
+@click.option("--disabled", is_flag=True, help="Show only disabled plugins.")
+@click.option("--category", default=None, help="Filter by category.")
+@click.pass_context
+def registry(ctx: click.Context, enabled: bool, disabled: bool,
+             category: str | None) -> None:
+    """List or inspect installed plugins."""
+    if ctx.invoked_subcommand is None:
+        ctx.invoke(list, enabled=enabled, disabled=disabled, category=category)
+
+
+@registry.command()
+@click.option("--enabled", is_flag=True, help="Show only enabled plugins.")
+@click.option("--disabled", is_flag=True, help="Show only disabled plugins.")
+@click.option("--category", default=None, help="Filter by category.")
+def list(enabled: bool, disabled: bool, category: str | None) -> None:
+    """List all installed plugins in a table."""
+    cmd_registry_list(_console, enabled=enabled, disabled=disabled, category=category)
+
+
+@registry.command()
+@click.argument("name")
+def info(name: str) -> None:
+    """Show detailed manifest information for a single plugin."""
+    cmd_registry_info(_console, name=name)
 
 
 # ---------------------------------------------------------------------------
