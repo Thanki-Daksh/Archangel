@@ -1,0 +1,10 @@
+# Archangel — Opportunity ranking weights
+# Higher weight = more influence on the final Lead Score.
+# Values are percentages — they should sum to 100.
+
+weights:
+  confidence: 40
+  urgency: 25
+  budget: 20
+  keywords: 10
+  recency: 5

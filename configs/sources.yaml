@@ -1,0 +1,24 @@
+# Archangel — Where information is collected
+# Each source must have an id, type, and enabled flag.
+# Collectors read this file to know which channels to monitor.
+
+sources:
+  # - id: telegram_jobs
+  #   type: telegram
+  #   channel: "Python Jobs"
+  #   enabled: false
+  #
+  # - id: reddit_forhire
+  #   type: reddit
+  #   subreddit: "forhire"
+  #   enabled: false
+  #
+  # - id: github_trending
+  #   type: github
+  #   topic: "python"
+  #   enabled: false
+  #
+  # - id: rss_dev
+  #   type: rss
+  #   url: "https://example.com/feed.xml"
+  #   enabled: false

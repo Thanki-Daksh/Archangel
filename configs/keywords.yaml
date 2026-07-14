@@ -1,0 +1,15 @@
+# Archangel — What the user is looking for
+# Leads matching include keywords are scored higher.
+# Leads matching exclude keywords are discarded or down-ranked.
+
+include:
+  - python
+  - automation
+  - ai
+  - backend
+  - flutter
+
+exclude:
+  - internship
+  - unpaid
+  - volunteer

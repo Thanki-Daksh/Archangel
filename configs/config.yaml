@@ -1,0 +1,15 @@
+# Archangel — Global Runtime Settings
+
+runtime:
+  debug: false
+  log_level: INFO
+  timezone: UTC
+
+plugins:
+  auto_discovery: true
+
+guardian:
+  enabled: true
+
+engine:
+  workers: auto

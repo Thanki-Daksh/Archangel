@@ -1,0 +1,7 @@
+# Archangel — AI behavior control
+
+provider: gemini
+model: gemini-3.5-flash
+temperature: 0.2
+confidence_threshold: 0.80
+detect_duplicates: true

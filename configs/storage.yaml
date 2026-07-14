@@ -1,0 +1,13 @@
+# Archangel — Persistence settings
+
+backend: sqlite  # Options: sqlite, json, postgres
+
+sqlite:
+  path: "data/archangel.db"
+
+# postgres:
+#   host: "${PGHOST}"
+#   port: 5432
+#   database: "${PGDATABASE}"
+#   user: "${PGUSER}"
+#   password: "${PGPASSWORD}"

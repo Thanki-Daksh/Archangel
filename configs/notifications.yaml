@@ -1,0 +1,21 @@
+# Archangel — Notification channels
+# Each channel can be enabled or disabled independently.
+
+channels:
+  # telegram:
+  #   enabled: false
+  #   bot_token: "${TELEGRAM_BOT_TOKEN}"
+  #   chat_id: "${TELEGRAM_CHAT_ID}"
+  #
+  # discord:
+  #   enabled: false
+  #   webhook_url: "${DISCORD_WEBHOOK_URL}"
+  #
+  # email:
+  #   enabled: false
+  #   smtp_host: "${SMTP_HOST}"
+  #   smtp_port: 587
+  #   username: "${SMTP_USER}"
+  #   password: "${SMTP_PASS}"
+  #   from: "archangel@example.com"
+  #   to: "${USER_EMAIL}"
