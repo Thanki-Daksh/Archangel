@@ -4,13 +4,12 @@ import subprocess
 import logging
 import shutil
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 class ObscuraScraper:
-    """Fallback scraper using the Obscura headless browser (Rust/V8)."""
+    """Fallback scraper using Obscura headless browser (Rust/V8)."""
 
     def __init__(self):
         self._obscura = shutil.which("obscura")
@@ -19,14 +18,11 @@ class ObscuraScraper:
             if local.exists():
                 self._obscura = str(local)
 
-    def _run(self, args: list[str], timeout: int = 30) -> str:
+    def _run(self, args, timeout=30):
         if not self._obscura:
             return "Error: obscura binary not found"
         try:
-            result = subprocess.run(
-                [self._obscura] + args,
-                capture_output=True, timeout=timeout
-            )
+            result = subprocess.run([self._obscura] + args, capture_output=True, timeout=timeout)
             try:
                 stdout = result.stdout.decode("utf-8", errors="replace").strip()
             except Exception:
@@ -43,19 +39,19 @@ class ObscuraScraper:
         except Exception as exc:
             return f"Error: {exc}"
 
-    def fetch_text(self, url: str, timeout: int = 30) -> str:
+    def fetch_text(self, url, timeout=30):
         return self._run(["fetch", url, "--dump", "text", "--timeout", str(timeout)], timeout + 10)
 
-    def fetch_html(self, url: str, timeout: int = 30) -> str:
+    def fetch_html(self, url, timeout=30):
         return self._run(["fetch", url, "--dump", "html", "--timeout", str(timeout)], timeout + 10)
 
-    def fetch_links(self, url: str, timeout: int = 30) -> str:
+    def fetch_links(self, url, timeout=30):
         return self._run(["fetch", url, "--dump", "links", "--timeout", str(timeout)], timeout + 10)
 
-    def fetch_eval(self, url: str, js: str, timeout: int = 30) -> str:
+    def fetch_eval(self, url, js, timeout=30):
         return self._run(["fetch", url, "--eval", js, "--timeout", str(timeout)], timeout + 10)
 
-    def fetch_markdown(self, url: str, timeout: int = 30) -> str:
+    def fetch_markdown(self, url, timeout=30):
         return self._run(["fetch", url, "--dump", "markdown", "--timeout", str(timeout)], timeout + 10)
 
 
@@ -63,8 +59,6 @@ class ScraplingScraper:
     """Primary scraper using Scrapling (fast HTTP + stealth browser)."""
 
     def __init__(self):
-        self._fetcher = None
-        self._stealthy = None
         self._init_failed = False
         try:
             from scrapling.fetchers import Fetcher, StealthyFetcher
@@ -74,94 +68,88 @@ class ScraplingScraper:
             logger.warning("Scrapling not installed — falling back to Obscura only")
             self._init_failed = True
 
-    def fetch_text(self, url: str, timeout: int = 30) -> str:
-        """Fast HTTP fetch for static pages."""
+    def fetch_text(self, url, timeout=30):
         if self._init_failed:
-            return "Error: scrapling not installed"
+            return "__FALLBACK__"
         try:
             page = self._fetcher_cls.get(url, timeout=timeout)
-            return page.get_all_text(separator="\n", strip=True) if hasattr(page, 'get_all_text') else str(page)
+            return page.get_all_text(separator="\n", strip=True)
         except Exception as exc:
             logger.warning("Scrapling HTTP fetch failed for %s: %s", url, exc)
-            return f"Error: {exc}"
+            return "__FALLBACK__"
 
-    def fetch_html(self, url: str, timeout: int = 30) -> str:
+    def fetch_html(self, url, timeout=30):
         if self._init_failed:
-            return "Error: scrapling not installed"
+            return "__FALLBACK__"
         try:
             page = self._fetcher_cls.get(url, timeout=timeout)
-            return str(page.html_content) if hasattr(page, 'html_content') else page.body
-        except Exception as exc:
-            return f"Error: {exc}"
+            return page.body if hasattr(page, 'body') else str(page)
+        except Exception:
+            return "__FALLBACK__"
 
-    def fetch_links(self, url: str, timeout: int = 30) -> str:
+    def fetch_links(self, url, timeout=30):
         if self._init_failed:
-            return "Error: scrapling not installed"
+            return "__FALLBACK__"
         try:
             page = self._fetcher_cls.get(url, timeout=timeout)
             links = page.css('a::attr(href)').getall() if hasattr(page, 'css') else []
-            return "\n".join(links) if links else "No links found"
-        except Exception as exc:
-            return f"Error: {exc}"
+            return "\n".join(links) if links else "__FALLBACK__"
+        except Exception:
+            return "__FALLBACK__"
 
-    def fetch_stealthy(self, url: str, timeout: int = 30) -> str:
-        """Stealth browser fetch for JS-heavy / anti-bot pages."""
+    def fetch_stealthy(self, url, timeout=30):
         if self._init_failed:
-            return "Error: scrapling not installed"
+            return "__FALLBACK__"
         try:
             page = self._stealthy_cls.fetch(url, headless=True, network_idle=True)
-            return page.get_all_text(separator="\n", strip=True) if hasattr(page, 'get_all_text') else str(page)
+            return page.get_all_text(separator="\n", strip=True)
         except Exception as exc:
             logger.warning("Scrapling stealthy fetch failed for %s: %s", url, exc)
-            return f"Error: {exc}"
+            return "__FALLBACK__"
 
 
 class SmartScraper:
     """Unified scraper — Scrapling first, Obscura fallback."""
 
+    JS_HEAVY_SITES = ["x.com", "twitter.com", "instagram.com", "tiktok.com"]
+
     def __init__(self):
         self.scrapling = ScraplingScraper()
         self.obscura = ObscuraScraper()
-        # Sites that need JS rendering (use Obscura or StealthyFetcher)
-        self._js_sites = ["x.com", "twitter.com", "instagram.com", "tiktok.com"]
 
-    def _needs_js(self, url: str) -> bool:
-        return any(site in url.lower() for site in self._js_sites)
+    def _needs_js(self, url):
+        return any(site in url.lower() for site in self.JS_HEAVY_SITES)
 
-    def fetch_text(self, url: str, timeout: int = 30) -> str:
-        # JS-heavy sites: try StealthyFetcher, then Obscura
+    def fetch_text(self, url, timeout=30):
         if self._needs_js(url):
             result = self.scrapling.fetch_stealthy(url, timeout)
-            if not result.startswith("Error:"):
+            if result != "__FALLBACK__":
                 return result
             return self.obscura.fetch_text(url, timeout)
-
-        # Static pages: try Scrapling HTTP, then Obscura
         result = self.scrapling.fetch_text(url, timeout)
-        if not result.startswith("Error:"):
+        if result != "__FALLBACK__":
             return result
-        logger.info("Scrapling failed for %s, falling back to Obscura", url)
         return self.obscura.fetch_text(url, timeout)
 
-    def fetch_html(self, url: str, timeout: int = 30) -> str:
+    def fetch_html(self, url, timeout=30):
         if self._needs_js(url):
             result = self.scrapling.fetch_stealthy(url, timeout)
-            if not result.startswith("Error:"):
+            if result != "__FALLBACK__":
                 return result
             return self.obscura.fetch_html(url, timeout)
         result = self.scrapling.fetch_html(url, timeout)
-        if not result.startswith("Error:"):
+        if result != "__FALLBACK__":
             return result
         return self.obscura.fetch_html(url, timeout)
 
-    def fetch_links(self, url: str, timeout: int = 30) -> str:
+    def fetch_links(self, url, timeout=30):
         result = self.scrapling.fetch_links(url, timeout)
-        if not result.startswith("Error:") and result != "No links found":
+        if result != "__FALLBACK__":
             return result
         return self.obscura.fetch_links(url, timeout)
 
-    def fetch_eval(self, url: str, js: str, timeout: int = 30) -> str:
+    def fetch_eval(self, url, js, timeout=30):
         return self.obscura.fetch_eval(url, js, timeout)
 
-    def fetch_markdown(self, url: str, timeout: int = 30) -> str:
+    def fetch_markdown(self, url, timeout=30):
         return self.obscura.fetch_markdown(url, timeout)
