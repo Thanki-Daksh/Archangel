@@ -61,9 +61,8 @@ class ScraplingScraper:
     def __init__(self):
         self._init_failed = False
         try:
-            from scrapling.fetchers import Fetcher, StealthyFetcher
+            from scrapling.fetchers import Fetcher
             self._fetcher_cls = Fetcher
-            self._stealthy_cls = StealthyFetcher
         except ImportError:
             logger.warning("Scrapling not installed — falling back to Obscura only")
             self._init_failed = True
@@ -97,17 +96,6 @@ class ScraplingScraper:
         except Exception:
             return "__FALLBACK__"
 
-    def fetch_stealthy(self, url, timeout=30):
-        if self._init_failed:
-            return "__FALLBACK__"
-        try:
-            page = self._stealthy_cls.fetch(url, headless=True, network_idle=True)
-            return page.get_all_text(separator="\n", strip=True)
-        except Exception as exc:
-            logger.warning("Scrapling stealthy fetch failed for %s: %s", url, exc)
-            return "__FALLBACK__"
-
-
 class SmartScraper:
     """Unified scraper — Scrapling first, Obscura fallback."""
 
@@ -121,10 +109,8 @@ class SmartScraper:
         return any(site in url.lower() for site in self.JS_HEAVY_SITES)
 
     def fetch_text(self, url, timeout=30):
+        # JS-heavy sites → Obscura directly (Scrapling async conflicts)
         if self._needs_js(url):
-            result = self.scrapling.fetch_stealthy(url, timeout)
-            if result != "__FALLBACK__":
-                return result
             return self.obscura.fetch_text(url, timeout)
         result = self.scrapling.fetch_text(url, timeout)
         if result != "__FALLBACK__":
@@ -133,9 +119,6 @@ class SmartScraper:
 
     def fetch_html(self, url, timeout=30):
         if self._needs_js(url):
-            result = self.scrapling.fetch_stealthy(url, timeout)
-            if result != "__FALLBACK__":
-                return result
             return self.obscura.fetch_html(url, timeout)
         result = self.scrapling.fetch_html(url, timeout)
         if result != "__FALLBACK__":
@@ -143,6 +126,8 @@ class SmartScraper:
         return self.obscura.fetch_html(url, timeout)
 
     def fetch_links(self, url, timeout=30):
+        if self._needs_js(url):
+            return self.obscura.fetch_links(url, timeout)
         result = self.scrapling.fetch_links(url, timeout)
         if result != "__FALLBACK__":
             return result
