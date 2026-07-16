@@ -131,57 +131,94 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from archangel.agents.chat import WebSearch
         from archangel.agents.scraper import ObscuraScraper
         from archangel.agents.chat import LLMClient
+        from pathlib import Path
+        from datetime import datetime
+        import re
 
         # Step 1: Search for LinkedIn posts
         search_query = f'{query} site:linkedin.com'
         results = WebSearch().search(search_query, max_results=5)
 
         # Step 2: Extract URLs from results
-        import re
         urls = re.findall(r'URL:\s*(https?://[^\s]+)', results)
 
         if not urls:
             await update.message.reply_text("No LinkedIn results found.")
             return
 
-        # Step 3: Scrape each URL
+        # Step 3: Scrape each URL + extract links
         scraper = ObscuraScraper()
         pages = []
-        for url in urls[:3]:  # Limit to 3 to avoid timeout
+        all_links = []
+        for url in urls[:3]:
             content = scraper.fetch_text(url, timeout=20)
             if not content.startswith("Error:"):
                 pages.append(f"URL: {url}\n\n{content[:3000]}")
+                # Also fetch links to find profile URLs
+                links_output = scraper.fetch_links(url, timeout=20)
+                if not links_output.startswith("Error:"):
+                    all_links.append(f"Links from {url}:\n{links_output[:2000]}")
 
         if not pages:
             await update.message.reply_text("Could not scrape any pages.")
             return
 
-        # Step 4: LLM extracts structured leads
+        # Step 4: LLM extracts structured leads with profile URLs
         llm = LLMClient()
-        combined = "\n\n---\n\n".join(pages)
+        combined_pages = "\n\n---\n\n".join(pages)
+        combined_links = "\n\n".join(all_links) if all_links else "No additional links found."
         prompt = (
-            "Analyze these LinkedIn pages and extract potential leads for an AI automation service. "
-            "For each lead, return:\n"
+            "Analyze these LinkedIn pages and extract potential leads for an AI automation service.\n\n"
+            "For EACH lead, extract:\n"
             "- Company/Person name\n"
+            "- LinkedIn profile URL (look for links containing linkedin.com/in/ or linkedin.com/company/ in the links section)\n"
+            "- Post URL (the original article/post URL)\n"
             "- What they need (pain point)\n"
             "- Why they're a good lead\n"
-            "- Contact signal (if any)\n"
-            "- URL\n\n"
-            "Format as a numbered list. Be concise. Only include leads that show genuine interest "
-            "or need for AI automation. Skip irrelevant results.\n\n"
-            f"Search query: {query}\n\nPages:\n{combined}"
+            "- Contact signal (named executive, email, etc. if available)\n\n"
+            "Format as a numbered list. Be concise. Only include leads with genuine interest or need "
+            "for AI automation. Skip irrelevant results.\n\n"
+            f"Search query: {query}\n\n"
+            f"=== PAGE CONTENT ===\n{combined_pages}\n\n"
+            f"=== EXTRACTED LINKS ===\n{combined_links}"
         )
         response = llm.chat([{"role": "user", "content": prompt}])
 
+        # Step 5: Save leads to .txt file
+        leads_dir = Path(__file__).resolve().parents[2] / "data" / "leads"
+        leads_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_query = re.sub(r'[^\w\s-]', '', query)[:30].strip().replace(' ', '_')
+        filename = f"leads_{safe_query}_{timestamp}.txt"
+        filepath = leads_dir / filename
+
+        file_content = (
+            f"Query: {query}\n"
+            f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Results: {len(urls)} URLs scraped\n"
+            f"{'='*60}\n\n"
+            f"{response}\n\n"
+            f"{'='*60}\n"
+            f"Source URLs:\n"
+        )
+        for url in urls:
+            file_content += f"- {url}\n"
+
+        filepath.write_text(file_content, encoding="utf-8")
+
+        # Step 6: Send leads to Telegram + confirm file saved
         bridge = context.application.bot_data.get("bridge")
+        header = f"🎯 Leads found for: {query}\n📁 Saved to: {filepath.name}\n\n"
+        full_response = header + response
         if bridge:
-            for part in bridge._split_message(response):
+            for part in bridge._split_message(full_response):
                 await update.message.reply_text(part)
         else:
-            await update.message.reply_text(response)
+            await update.message.reply_text(full_response)
 
     except Exception as exc:
         await update.message.reply_text(f"❌ Leads search failed: {exc}")
+
 
 
 @auth_required
