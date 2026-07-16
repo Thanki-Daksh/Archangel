@@ -22,7 +22,7 @@ class TelegramBridge:
         bridge = Bridge()
         self._app = create_bot(bridge)
 
-        from archangel.agents.scraper import ObscuraScraper
+        from archangel.agents.scraper import SmartScraper
         from archangel.agents.monitor import SiteMonitor
 
         def _notify(msg: str):
@@ -37,7 +37,7 @@ class TelegramBridge:
             except Exception:
                 logger.warning("Could not send monitor notification: %s", msg)
 
-        scraper = ObscuraScraper()
+        scraper = SmartScraper()
         bridge.monitor = SiteMonitor(scraper=scraper, notify_callback=_notify)
         bridge.monitor.load()
         bridge.monitor.start()
