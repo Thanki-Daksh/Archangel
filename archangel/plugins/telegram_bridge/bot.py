@@ -34,7 +34,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Commands:\n"
         "  status - System status\n"
         "  search <query> - Search the web\n"
-        "  leads <query> - Find AI automation leads on LinkedIn\n"
+        "  leads <query> [site:<platform>] - Find leads on any platform\n"
         "  save - Save last leads to file\n"
         "  mode [basic|smart|continuous] - Toggle scraping mode\n"
         "  scrape <url> - Scrape a URL\n"
@@ -115,6 +115,45 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Search failed: {exc}")
 
 
+SITE_SHORTCUTS = {
+    "linkedin": "linkedin.com",
+    "reddit": "reddit.com",
+    "discord": "discord.com",
+    "x": "x.com",
+    "twitter": "x.com",
+    "github": "github.com",
+    "stackoverflow": "stackoverflow.com",
+    "quora": "quora.com",
+    "medium": "medium.com",
+    "producthunt": "producthunt.com",
+    "indiehackers": "indiehackers.com",
+    "hackernews": "news.ycombinator.com",
+    "facebook": "facebook.com",
+    "instagram": "instagram.com",
+    "youtube": "youtube.com",
+}
+
+
+def _parse_site_filter(query: str):
+    """Extract site: parameter from query. Returns (cleaned_query, site_filter_or_None)."""
+    import re
+    # Check known shortcuts first
+    lower = query.lower()
+    for key, domain in SITE_SHORTCUTS.items():
+        pattern = f"site:{key}"
+        if pattern in lower:
+            idx = lower.index(pattern)
+            cleaned = (query[:idx] + query[idx + len(pattern):]).strip()
+            return cleaned, f"site:{domain}"
+    # Check raw domain (e.g., site:customsite.com)
+    match = re.search(r'site:(\S+)', query, re.IGNORECASE)
+    if match:
+        domain = match.group(1)
+        cleaned = (query[:match.start()] + query[match.end():]).strip()
+        return cleaned, f"site:{domain}"
+    return query, None
+
+
 @auth_required
 async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
@@ -122,26 +161,41 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = text[1:]
     parts = text.split(None, 1)
     if len(parts) < 2:
-        await update.message.reply_text('Usage: leads <query>\nExample: leads "AI automation"')
+        await update.message.reply_text(
+            'Usage: leads <query> [site:<platform>]\n\n'
+            'Sites: linkedin, reddit, discord, x, github, medium, producthunt\n'
+            'Or use any domain: site:customsite.com\n\n'
+            'Examples:\n'
+            '  leads "AI automation" site:discord\n'
+            '  leads "chatbot" site:linkedin\n'
+            '  leads "python freelance" site:customsite.com'
+        )
         return
 
-    query = parts[1].strip().strip('"').strip("'")
+    raw_query = parts[1].strip().strip('"').strip("'")
+    query, site_filter = _parse_site_filter(raw_query)
+
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     try:
-        from archangel.agents.chat import WebSearch
+        from archangel.agents.chat import WebSearch, LLMClient
         from archangel.agents.scraper import SmartScraper
-        from archangel.agents.chat import LLMClient
         import re
 
-        search_query = f'{query} site:linkedin.com'
+        # Build search query
+        if site_filter:
+            search_query = f'{query} {site_filter}'
+        else:
+            search_query = query
+
         results = WebSearch().search(search_query, max_results=5)
         urls = re.findall(r'URL:\s*(https?://[^\s]+)', results)
 
         if not urls:
-            await update.message.reply_text("No LinkedIn results found.")
+            await update.message.reply_text("No results found.")
             return
 
+        # Scrape each URL
         scraper = SmartScraper()
         pages = []
         all_links = []
@@ -150,38 +204,56 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not content.startswith("Error:"):
                 pages.append(f"URL: {url}\n\n{content[:3000]}")
                 links_output = scraper.fetch_links(url, timeout=20)
-                if not links_output.startswith("Error:"):
+                if links_output and not links_output.startswith("Error:"):
                     all_links.append(f"Links from {url}:\n{links_output[:2000]}")
 
         if not pages:
             await update.message.reply_text("Could not scrape any pages.")
             return
 
+        # Build context-aware prompt based on site
+        if site_filter and "discord" in site_filter:
+            context_hint = "Look for people asking for help, seeking automation services, or discussing pain points in Discord servers."
+        elif site_filter and "reddit" in site_filter:
+            context_hint = "Look for Reddit threads where people are asking for recommendations, expressing frustration, or seeking automation solutions."
+        elif site_filter and "linkedin" in site_filter:
+            context_hint = "Look for LinkedIn posts or articles where companies express AI automation needs or executives discuss digital transformation."
+        elif site_filter and ("x.com" in site_filter or "twitter" in site_filter):
+            context_hint = "Look for tweets expressing pain points, asking for recommendations, or discussing automation needs."
+        elif site_filter and "github" in site_filter:
+            context_hint = "Look for GitHub issues, discussions, or repos where people need automation help or are building related tools."
+        elif site_filter and "stackoverflow" in site_filter:
+            context_hint = "Look for StackOverflow questions where people struggle with automation, AI integration, or repetitive tasks."
+        else:
+            context_hint = "Find people or companies showing interest in or need for AI automation services."
+
         llm = LLMClient()
         combined_pages = "\n\n---\n\n".join(pages)
         combined_links = "\n\n".join(all_links) if all_links else "No additional links found."
         prompt = (
-            "Analyze these LinkedIn pages and extract potential leads for an AI automation service.\n\n"
+            f"Analyze these search results and extract potential leads for an AI automation service.\n"
+            f"{context_hint}\n\n"
             "For EACH lead, extract:\n"
             "- Company/Person name\n"
-            "- LinkedIn profile URL (look for links containing linkedin.com/in/ or linkedin.com/company/ in the links)\n"
-            "- Post URL (original article/post URL)\n"
+            "- Profile URL (if available — look for linkedin.com/in/, discord handles, reddit usernames, twitter handles)\n"
+            "- Post/Content URL\n"
             "- What they need (pain point)\n"
             "- Why they're a good lead\n"
-            "- Contact signal (named executive, email, etc.)\n\n"
+            "- Contact signal (named person, handle, email, etc.)\n\n"
             "Numbered list. Be concise. Only genuine leads.\n\n"
-            f"Search query: {query}\n\n"
+            f"Search: {search_query}\n\n"
             f"=== PAGES ===\n{combined_pages}\n\n"
             f"=== LINKS ===\n{combined_links}"
         )
         response = llm.chat([{"role": "user", "content": prompt}])
 
-        # Store in memory for later save
+        # Store in memory for save command
         bridge = context.application.bot_data["bridge"]
         bridge.last_leads = response
-        bridge.last_leads_query = query
+        bridge.last_leads_query = raw_query
 
-        header = f"🎯 Leads for: {query}\n\n"
+        site_label = f" on {site_filter}" if site_filter else ""
+        header = f"🎯 Leads for: {query}{site_label}\n\n"
         full_response = header + response
         for part in bridge._split_message(full_response):
             await update.message.reply_text(part)
