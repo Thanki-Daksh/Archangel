@@ -71,7 +71,11 @@ class ScraplingScraper:
         if self._init_failed:
             return "__FALLBACK__"
         try:
-            page = self._fetcher_cls.get(url, timeout=timeout)
+            page = self._fetcher_cls.get(
+                url,
+                timeout=timeout,
+                stealthy_headers=True,
+            )
             return page.get_all_text(separator="\n", strip=True)
         except Exception as exc:
             logger.warning("Scrapling HTTP fetch failed for %s: %s", url, exc)
@@ -138,3 +142,11 @@ class SmartScraper:
 
     def fetch_markdown(self, url, timeout=30):
         return self.obscura.fetch_markdown(url, timeout)
+
+    def fetch_x_search(self, query: str, timeout: int = 30) -> str:
+        """Fetch X/Twitter live search — HTML dump since X is JS-rendered."""
+        url = f"https://x.com/search?q={query.replace(' ', '%20')}&src=typed_query&f=live"
+        html = self.obscura.fetch_html(url, timeout)
+        if html and not html.startswith("Error:") and "JavaScript is not available" not in html:
+            return html
+        return html if html else "Error: Could not fetch X search"

@@ -1,5 +1,6 @@
 """Telegram bot handlers with smart text routing."""
 
+import asyncio
 import logging
 from telegram import Update
 from telegram.ext import (
@@ -12,6 +13,35 @@ from telegram.ext import (
 from .auth import is_authorized
 
 logger = logging.getLogger(__name__)
+
+
+class ProgressIndicator:
+    """Animated progress indicator using a live Telegram message."""
+
+    def __init__(self, message):
+        self.message = message
+
+    async def update(self, text: str):
+        try:
+            await self.message.edit_text(text)
+        except Exception:
+            pass
+
+    async def done(self):
+        """Delete the progress message."""
+        try:
+            await self.message.delete()
+        except Exception:
+            pass
+
+    async def error(self, text: str, delay: float = 3.0):
+        """Show error text then delete after delay."""
+        try:
+            await self.message.edit_text(text)
+            await asyncio.sleep(delay)
+            await self.message.delete()
+        except Exception:
+            pass
 
 
 def auth_required(func):
@@ -177,7 +207,8 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     raw_query = parts[1].strip().strip('"').strip("'")
 
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    status_msg = await update.message.reply_text("🔍 Parsing your request...")
+    progress = ProgressIndicator(status_msg)
 
     try:
         from archangel.agents.chat import WebSearch, LLMClient
@@ -192,20 +223,19 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         scraper = SmartScraper()
         combined_content = ""
-
-        # Step 2: Check if site is X/Twitter → dual-search
         is_x = site_domain and ("x.com" in site_domain or "twitter" in site_domain)
 
         if is_x:
-            # 2a: Search X directly via Obscura (handles JS, no async conflict)
-            x_search_url = f"https://x.com/search?q={search_terms.replace(' ', '%20')}&src=typed_query&f=live"
-            x_content = scraper.fetch_text(x_search_url, timeout=30)
+            # 2a: Search X directly via HTML dump (handles JS-rendered content)
+            await progress.update("🔍 Searching X/Twitter directly...")
+            x_content = scraper.fetch_x_search(search_terms, timeout=30)
             if x_content and not x_content.startswith("Error:"):
                 combined_content += f"=== X/TWITTER LIVE SEARCH ===\n{x_content[:6000]}\n\n"
             else:
                 combined_content += "=== X/TWITTER LIVE SEARCH ===\nNo results from X search.\n\n"
 
-            # 2b: Also search Reddit via DuckDuckGo for corroborating leads
+            # 2b: Search Reddit via DuckDuckGo
+            await progress.update("🔍 Fetching Reddit discussions...")
             reddit_results = WebSearch().search(f'{search_terms} site:reddit.com', max_results=5)
             reddit_urls = re.findall(r'URL:\s*(https?://[^\s]+)', reddit_results)
             reddit_pages = []
@@ -217,22 +247,23 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 combined_content += f"=== REDDIT DISCUSSIONS ===\n{'---'.join(reddit_pages)}\n\n"
 
         else:
-            # Standard single-site search via DuckDuckGo
             if site_domain:
                 search_query = f'{search_terms} site:{site_domain}'
             else:
                 search_query = search_terms
 
+            await progress.update("🔍 Searching the web...")
             results = WebSearch().search(search_query, max_results=5)
             urls = re.findall(r'URL:\s*(https?://[^\s]+)', results)
 
             if not urls:
-                await update.message.reply_text("No results found.")
+                await progress.error("❌ No results found.")
                 return
 
             pages = []
             all_links = []
-            for url in urls[:3]:
+            for i, url in enumerate(urls[:3]):
+                await progress.update(f"⚙️ Scraping page {i+1}/{min(len(urls), 3)}...")
                 content = scraper.fetch_text(url, timeout=20)
                 if content and not content.startswith("Error:"):
                     pages.append(f"URL: {url}\n\n{content[:3000]}")
@@ -241,7 +272,7 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         all_links.append(f"Links from {url}:\n{links_output[:2000]}")
 
             if not pages:
-                await update.message.reply_text("Could not scrape any pages.")
+                await progress.error("❌ Could not scrape any pages.")
                 return
 
             combined_content = f"=== SEARCH RESULTS ===\n{'---'.join(pages)}\n\n"
@@ -249,10 +280,10 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 combined_content += f"=== EXTRACTED LINKS ===\n{'---'.join(all_links)}\n\n"
 
         if not combined_content.strip():
-            await update.message.reply_text("No content found to analyze.")
+            await progress.error("❌ No content found to analyze.")
             return
 
-        # Step 3: Context hint based on site
+        # Context hint based on site
         if is_x:
             context_hint = "Look for tweets from real users expressing pain points, asking for help, seeking developers, or discussing automation needs. Focus on individual users, not corporate accounts."
         elif site_domain:
@@ -271,7 +302,8 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             context_hint = "Find people or companies showing interest in or need for AI automation services."
 
-        # Step 4: LLM extracts leads
+        # LLM extracts leads
+        await progress.update("💡 Analyzing leads with AI...")
         llm = LLMClient()
         prompt = (
             f"Analyze these results and extract potential leads for an AI automation service.\n"
@@ -296,12 +328,13 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         response = llm.chat([{"role": "user", "content": prompt}])
 
-        # Step 5: Store for save command
+        # Store for save command
         bridge = context.application.bot_data["bridge"]
         bridge.last_leads = response
         bridge.last_leads_query = raw_query
 
-        # Step 6: Send to Telegram
+        # Delete progress, send real response
+        await progress.done()
         site_label = f" on {'X + Reddit' if is_x else site_domain}" if (is_x or site_domain) else ""
         header = f"🎯 Leads for: {search_terms}{site_label}\n\n"
         full_response = header + response
@@ -309,7 +342,7 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(part)
 
     except Exception as exc:
-        await update.message.reply_text(f"❌ Leads search failed: {exc}")
+        await progress.error(f"❌ Leads search failed: {exc}")
 
 
 @auth_required
@@ -381,25 +414,30 @@ async def scrape_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     mode = bridge.get_mode(user_id)
 
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    status_msg = await update.message.reply_text(f"⚙️ Scraping {url}...")
+    progress = ProgressIndicator(status_msg)
 
     try:
         from archangel.agents.scraper import SmartScraper
         scraper = SmartScraper()
 
         if mode == "basic":
+            await progress.update("⚙️ Fetching page content...")
             raw = scraper.fetch_text(url)
             if raw.startswith("Error:"):
-                await update.message.reply_text(f"❌ {raw}")
+                await progress.error(f"❌ {raw}")
                 return
+            await progress.done()
             for part in bridge._split_message(raw):
                 await update.message.reply_text(part)
 
         elif mode == "smart":
+            await progress.update("⚙️ Fetching page content...")
             raw = scraper.fetch_text(url)
             if raw.startswith("Error:"):
-                await update.message.reply_text(f"❌ {raw}")
+                await progress.error(f"❌ {raw}")
                 return
+            await progress.update("💡 Analyzing with AI...")
             prompt = (
                 "Extract and summarize the key information from this web page. "
                 "Return structured data: title, main content, key points, links. "
@@ -407,15 +445,19 @@ async def scrape_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"Page content:\n{raw[:8000]}"
             )
             response = bridge.llm.chat([{"role": "user", "content": prompt}])
+            await progress.done()
             for part in bridge._split_message(response):
                 await update.message.reply_text(part)
 
         elif mode == "continuous":
+            await progress.update("⚙️ Adding to watch list...")
             result = bridge.monitor.add(url)
-            await update.message.reply_text(result)
+            await progress.update(f"✅ {result}")
+            await asyncio.sleep(2)
+            await progress.done()
 
     except Exception as exc:
-        await update.message.reply_text(f"❌ Scrape error: {exc}")
+        await progress.error(f"❌ Scrape error: {exc}")
 
 
 @auth_required
