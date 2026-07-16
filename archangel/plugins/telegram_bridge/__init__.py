@@ -21,6 +21,27 @@ class TelegramBridge:
 
         bridge = Bridge()
         self._app = create_bot(bridge)
+
+        from archangel.agents.scraper import ObscuraScraper
+        from archangel.agents.monitor import SiteMonitor
+
+        def _notify(msg: str):
+            try:
+                loop = self._app.bot_data.get("_loop")
+                if loop and loop.is_running():
+                    import asyncio
+                    asyncio.run_coroutine_threadsafe(
+                        self._app.bot.send_message(chat_id=8741237853, text=msg),
+                        loop
+                    )
+            except Exception:
+                logger.warning("Could not send monitor notification: %s", msg)
+
+        scraper = ObscuraScraper()
+        bridge.monitor = SiteMonitor(scraper=scraper, notify_callback=_notify)
+        bridge.monitor.load()
+        bridge.monitor.start()
+
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
         logger.info("Telegram bridge started")
@@ -29,9 +50,16 @@ class TelegramBridge:
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+        if self._app:
+            self._app.bot_data["_loop"] = loop
         self._app.run_polling(drop_pending_updates=True, close_loop=False)
 
     def stop(self):
+        if self._app and self._app.bot_data.get("bridge"):
+            bridge = self._app.bot_data["bridge"]
+            if hasattr(bridge, "monitor") and bridge.monitor:
+                bridge.monitor.stop()
+
         if self._app:
             try:
                 if self._app.running:
