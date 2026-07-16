@@ -168,7 +168,7 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'Usage: leads <query> [site:<platform>]\n\n'
             'Just describe what you want naturally:\n'
             '  leads "AI automation" site:discord\n'
-            '  leads easy discord bots site: X budget 300-1000$, early posts, zero comments\n'
+            '  leads easy discord bots site: X budget 300-1000$\n'
             '  leads python freelance work\n\n'
             'Supported sites: linkedin, reddit, discord, x, github, stackoverflow, medium\n'
             'Or use any domain: site:customsite.com'
@@ -190,46 +190,78 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         site_domain = parsed.get("site")
         instructions = parsed.get("instructions")
 
-        # Step 2: Build clean search query
-        if site_domain:
-            search_query = f'{search_terms} site:{site_domain}'
-        else:
-            search_query = search_terms
-
-        # Step 3: Search
-        results = WebSearch().search(search_query, max_results=5)
-        urls = re.findall(r'URL:\s*(https?://[^\s]+)', results)
-
-        if not urls:
-            await update.message.reply_text("No results found.")
-            return
-
-        # Step 4: Scrape URLs
         scraper = SmartScraper()
-        pages = []
-        all_links = []
-        for url in urls[:3]:
-            content = scraper.fetch_text(url, timeout=20)
-            if not content.startswith("Error:"):
-                pages.append(f"URL: {url}\n\n{content[:3000]}")
-                links_output = scraper.fetch_links(url, timeout=20)
-                if links_output and not links_output.startswith("Error:"):
-                    all_links.append(f"Links from {url}:\n{links_output[:2000]}")
+        combined_content = ""
 
-        if not pages:
-            await update.message.reply_text("Could not scrape any pages.")
+        # Step 2: Check if site is X/Twitter → dual-search
+        is_x = site_domain and ("x.com" in site_domain or "twitter" in site_domain)
+
+        if is_x:
+            # 2a: Search X directly via Obscura (handles JS, no async conflict)
+            x_search_url = f"https://x.com/search?q={search_terms.replace(' ', '%20')}&src=typed_query&f=live"
+            x_content = scraper.fetch_text(x_search_url, timeout=30)
+            if x_content and not x_content.startswith("Error:"):
+                combined_content += f"=== X/TWITTER LIVE SEARCH ===\n{x_content[:6000]}\n\n"
+            else:
+                combined_content += "=== X/TWITTER LIVE SEARCH ===\nNo results from X search.\n\n"
+
+            # 2b: Also search Reddit via DuckDuckGo for corroborating leads
+            reddit_results = WebSearch().search(f'{search_terms} site:reddit.com', max_results=5)
+            reddit_urls = re.findall(r'URL:\s*(https?://[^\s]+)', reddit_results)
+            reddit_pages = []
+            for url in reddit_urls[:3]:
+                content = scraper.fetch_text(url, timeout=20)
+                if content and not content.startswith("Error:"):
+                    reddit_pages.append(f"URL: {url}\n\n{content[:3000]}")
+            if reddit_pages:
+                combined_content += f"=== REDDIT DISCUSSIONS ===\n{'---'.join(reddit_pages)}\n\n"
+
+        else:
+            # Standard single-site search via DuckDuckGo
+            if site_domain:
+                search_query = f'{search_terms} site:{site_domain}'
+            else:
+                search_query = search_terms
+
+            results = WebSearch().search(search_query, max_results=5)
+            urls = re.findall(r'URL:\s*(https?://[^\s]+)', results)
+
+            if not urls:
+                await update.message.reply_text("No results found.")
+                return
+
+            pages = []
+            all_links = []
+            for url in urls[:3]:
+                content = scraper.fetch_text(url, timeout=20)
+                if content and not content.startswith("Error:"):
+                    pages.append(f"URL: {url}\n\n{content[:3000]}")
+                    links_output = scraper.fetch_links(url, timeout=20)
+                    if links_output and not links_output.startswith("Error:"):
+                        all_links.append(f"Links from {url}:\n{links_output[:2000]}")
+
+            if not pages:
+                await update.message.reply_text("Could not scrape any pages.")
+                return
+
+            combined_content = f"=== SEARCH RESULTS ===\n{'---'.join(pages)}\n\n"
+            if all_links:
+                combined_content += f"=== EXTRACTED LINKS ===\n{'---'.join(all_links)}\n\n"
+
+        if not combined_content.strip():
+            await update.message.reply_text("No content found to analyze.")
             return
 
-        # Step 5: Context hint based on site
-        if site_domain:
+        # Step 3: Context hint based on site
+        if is_x:
+            context_hint = "Look for tweets from real users expressing pain points, asking for help, seeking developers, or discussing automation needs. Focus on individual users, not corporate accounts."
+        elif site_domain:
             if "discord" in site_domain:
                 context_hint = "Look for people asking for help, seeking automation services, or discussing pain points in Discord servers."
             elif "reddit" in site_domain:
                 context_hint = "Look for Reddit threads where people are asking for recommendations, expressing frustration, or seeking automation solutions."
             elif "linkedin" in site_domain:
                 context_hint = "Look for LinkedIn posts or articles where companies express AI automation needs or executives discuss digital transformation."
-            elif "x.com" in site_domain or "twitter" in site_domain:
-                context_hint = "Look for tweets expressing pain points, asking for recommendations, or discussing automation needs."
             elif "github" in site_domain:
                 context_hint = "Look for GitHub issues, discussions, or repos where people need automation help."
             elif "stackoverflow" in site_domain:
@@ -239,13 +271,10 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             context_hint = "Find people or companies showing interest in or need for AI automation services."
 
-        # Step 6: LLM extracts leads
+        # Step 4: LLM extracts leads
         llm = LLMClient()
-        combined_pages = "\n\n---\n\n".join(pages)
-        combined_links = "\n\n".join(all_links) if all_links else "No additional links found."
-
         prompt = (
-            f"Analyze these search results and extract potential leads for an AI automation service.\n"
+            f"Analyze these results and extract potential leads for an AI automation service.\n"
             f"{context_hint}\n\n"
         )
         if instructions:
@@ -254,26 +283,26 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         prompt += (
             "For EACH lead, extract:\n"
             "- Company/Person name\n"
-            "- Profile URL (linkedin.com/in/, discord handle, reddit username, twitter handle, etc.)\n"
-            "- Post/Content URL\n"
+            "- Profile URL (twitter handle, linkedin.com/in/, discord handle, reddit username, etc.)\n"
+            "- Post/Content URL (link to the specific post or tweet)\n"
             "- What they need (pain point)\n"
             "- Why they're a good lead\n"
             "- Contact signal (named person, handle, email, etc.)\n\n"
             "Numbered list. Be concise. Only genuine leads showing real interest or need.\n"
-            "Skip irrelevant results (blog posts, directories, marketing content).\n\n"
-            f"Search: {search_query}\n\n"
-            f"=== PAGES ===\n{combined_pages}\n\n"
-            f"=== LINKS ===\n{combined_links}"
+            "Skip irrelevant results (official accounts, login pages, bot directories, marketing blogs).\n\n"
+            f"Search: {search_terms}\n"
+            f"Site: {'X/Twitter + Reddit' if is_x else (site_domain or 'All')}\n\n"
+            f"{combined_content}"
         )
         response = llm.chat([{"role": "user", "content": prompt}])
 
-        # Step 7: Store for save command
+        # Step 5: Store for save command
         bridge = context.application.bot_data["bridge"]
         bridge.last_leads = response
         bridge.last_leads_query = raw_query
 
-        # Step 8: Send to Telegram
-        site_label = f" on {site_domain}" if site_domain else ""
+        # Step 6: Send to Telegram
+        site_label = f" on {'X + Reddit' if is_x else site_domain}" if (is_x or site_domain) else ""
         header = f"🎯 Leads for: {search_terms}{site_label}\n\n"
         full_response = header + response
         for part in bridge._split_message(full_response):
