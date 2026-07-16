@@ -11,6 +11,7 @@ Click CLI layer and the interactive REPL.  No code duplication.
 from __future__ import annotations
 
 import os
+import re
 import sys
 import time
 import json
@@ -48,6 +49,7 @@ REPL_COMMANDS = [
 # Console singleton
 # ---------------------------------------------------------------------------
 _console = Console()
+_bridge = None
 
 
 def _get_project_root() -> Path:
@@ -149,6 +151,12 @@ def cmd_summon(console: Console, debug: bool = False,
         from archangel.notifications import NotificationAgent
         NotificationAgent()
 
+        console.print("[yellow]Starting Telegram bridge ...[/]")
+        from archangel.plugins.telegram_bridge import TelegramBridge
+        global _bridge
+        _bridge = TelegramBridge()
+        _bridge.start()
+
         engine_start(debug=debug, config_path=config_path)
         _step("Configuration loaded")
         _step("Logger initialized")
@@ -161,6 +169,7 @@ def cmd_summon(console: Console, debug: bool = False,
         _step("Intelligence agent ready")
         _step("Scoring agent ready")
         _step("Notification agent ready")
+        _step("Telegram bridge active")
         _step("Engine started")
 
         console.print()
@@ -196,6 +205,13 @@ def cmd_terminate(console: Console) -> bool:
         time.sleep(0.1)
         console.print("[yellow]Saving database ...[/]")
         time.sleep(0.1)
+        console.print("[yellow]Stopping Telegram bridge ...[/]")
+        global _bridge
+        if _bridge:
+            try:
+                _bridge.stop()
+            except Exception:
+                pass
         console.print("[yellow]Shutting down engine ...[/]")
         engine_stop()
 
@@ -1080,9 +1096,12 @@ def run_chat_repl(console: Console) -> None:
         EXECUTE_RE,
         SEARCH_RE,
         SCREENSHOT_RE,
+        AUTOMATE_RE,
         extract_execute_commands,
         extract_search_queries,
         extract_screenshot_requests,
+        extract_automate_requests,
+        Automator,
     )
 
     _api_keys = ["GROQ", "GEMINI", "OPENAI", "ANTHROPIC"]
@@ -1148,7 +1167,8 @@ def run_chat_repl(console: Console) -> None:
                 "TOOLS\n"
                 "1. <execute>...</execute> — run a PowerShell command\n"
                 "2. <search>...</search> — search the web\n"
-                "3. <screenshot></screenshot> — capture the user's screen\n\n"
+                "3. <screenshot></screenshot> — capture the user's screen\n"
+                "4. <automate>task description</automate> — autonomous GUI control (click, type, navigate)\n\n"
 
                 "SLASH COMMANDS (handled by system, not you)\n"
                 "The user has access to: /env /config /models /clear /history /export /help /exit\n"
@@ -1169,14 +1189,31 @@ def run_chat_repl(console: Console) -> None:
                 "Known URLs: git→git-scm.com | github→github.com | gemini→gemini.google.com | youtube→youtube.com | docker→docker.com | npm→npmjs.com | pypi→pypi.org\n\n"
 
                 "OPENING APPS\n"
-                "Start-Process 'appname' for apps in PATH. Start-Process 'URL' for websites.\n\n"
+                "Use <automate>open appname</automate> to open apps via GUI automation.\n"
+                "Use <automate>close appname</automate> to close apps via GUI automation.\n"
+                "Or use Start-Process 'appname' for apps in PATH. Start-Process 'URL' for websites.\n\n"
 
                 "YOUTUBE\n"
                 "Play video: <execute>Start-Process 'https://www.youtube.com/results?search_query=QUERY'</execute>\n\n"
 
                 "SCREEN CAPTURE\n"
-                "When user asks to see their screen: use <screenshot></screenshot>.\n"
-                "Describe what you see concisely.\n\n"
+                "When user asks to see their screen or screenshot, you MUST output EXACTLY this tag and nothing else:\n"
+                "<screenshot></screenshot>\n"
+                "Do NOT use  or any other format. ONLY <screenshot></screenshot>.\n"
+                "After the system captures it, you'll receive the image. Describe what you see.\n\n"
+
+                "GUI AUTOMATION\n"
+                "When user asks to click, type, open/close apps, or automate anything on screen, use:\n"
+                "<automate>description of what to do</automate>\n"
+                "Example: <automate>open notepad and type hello</automate>\n"
+                "Example: <automate>close chrome</automate>\n"
+                "Example: <automate>click on the search bar</automate>\n"
+                "NEVER use PowerShell for GUI tasks. ALWAYS use <automate>.\n\n"
+
+                "CLOSING APPS\n"
+                "To close an app: <automate>close appname</automate>\n"
+                "Example: <automate>close notepad</automate>\n"
+                "Example: <automate>close chrome</automate>\n\n"
 
                 "MEMORY\n"
                 "Remember previous commands, outputs, and errors in this session.\n\n"
@@ -1235,10 +1272,16 @@ def run_chat_repl(console: Console) -> None:
                 history.append({"role": "assistant", "content": response_text})
 
                 console.print()
-                # Print the assistant response (strip <execute>/<search> blocks from display)
+                # Print the assistant response (strip command blocks from display)
                 display = EXECUTE_RE.sub("", response_text)
                 display = SEARCH_RE.sub("", display)
                 display = SCREENSHOT_RE.sub("", display)
+                display = AUTOMATE_RE.sub("", display)
+                # Strip wrong formats too (, , thinking tags)
+                display = re.sub(r"<tool>\s*(?:\[thinking\].*?</thinking>\s*)?\[screenshot\]\s*</tool>", "", display, flags=re.IGNORECASE | re.DOTALL)
+                display = re.sub(r"<tool>\s*(?:\[thinking\].*?</thinking>\s*)?\[([^\]]+)\]\s*</tool>", "", display, flags=re.IGNORECASE | re.DOTALL)
+                display = re.sub(r"<pyautogui_call>.*?</pyautogui_call>", "", display, flags=re.DOTALL)
+                display = re.sub(r"<screenshot>|</screenshot>", "", display, flags=re.IGNORECASE)
                 for line in display.splitlines():
                     if line.strip():
                         console.print(f"[bold]archangel>[/] {line}")
@@ -1248,7 +1291,7 @@ def run_chat_repl(console: Console) -> None:
                 screenshots = extract_screenshot_requests(response_text)
                 if screenshots:
                     if not llm.supports_vision():
-                        console.print("[bold]archangel>[/] [red]Screen capture requires Gemini, OpenAI, or Claude. Current provider doesn't support vision.[/]")
+                        console.print("[bold]archangel>[/] [red]Screen capture requires a vision-capable provider (Gemini, OpenAI, Claude, OpenRouter, or Groq). Current provider doesn't support vision.[/]")
                     else:
                         sc = ScreenCapture()
                         img_b64 = sc.capture()
@@ -1260,6 +1303,18 @@ def run_chat_repl(console: Console) -> None:
                             })
                         else:
                             console.print(f"[bold]archangel>[/] {img_b64}")
+                    continue
+
+                # Handle <automate>...</automate>
+                automate_requests = extract_automate_requests(response_text)
+                if automate_requests:
+                    for task_desc in automate_requests:
+                        console.print(f"[bold]archangel>[/] [dim]automating: {task_desc}[/]")
+                        result = Automator.run(task=task_desc)
+                        history.append({
+                            "role": "user",
+                            "content": f"<automate_result>{result}</automate_result>",
+                        })
                     continue
 
                 # Handle <search>...</search>
@@ -1322,7 +1377,8 @@ def run_chat_repl(console: Console) -> None:
                 "TOOLS\n"
                 "1. <execute>...</execute> — run a PowerShell command\n"
                 "2. <search>...</search> — search the web\n"
-                "3. <screenshot></screenshot> — capture the user's screen\n\n"
+                "3. <screenshot></screenshot> — capture the user's screen\n"
+                "4. <automate>task description</automate> — autonomous GUI control (click, type, navigate)\n\n"
 
                 "SLASH COMMANDS (handled by system, not you)\n"
                 "The user has access to: /env /config /models /clear /history /export /help /exit\n"
@@ -1343,14 +1399,31 @@ def run_chat_repl(console: Console) -> None:
                 "Known URLs: git→git-scm.com | github→github.com | gemini→gemini.google.com | youtube→youtube.com | docker→docker.com | npm→npmjs.com | pypi→pypi.org\n\n"
 
                 "OPENING APPS\n"
-                "Start-Process 'appname' for apps in PATH. Start-Process 'URL' for websites.\n\n"
+                "Use <automate>open appname</automate> to open apps via GUI automation.\n"
+                "Use <automate>close appname</automate> to close apps via GUI automation.\n"
+                "Or use Start-Process 'appname' for apps in PATH. Start-Process 'URL' for websites.\n\n"
 
                 "YOUTUBE\n"
                 "Play video: <execute>Start-Process 'https://www.youtube.com/results?search_query=QUERY'</execute>\n\n"
 
                 "SCREEN CAPTURE\n"
-                "When user asks to see their screen: use <screenshot></screenshot>.\n"
-                "Describe what you see concisely.\n\n"
+                "When user asks to see their screen or screenshot, you MUST output EXACTLY this tag and nothing else:\n"
+                "<screenshot></screenshot>\n"
+                "Do NOT use  or any other format. ONLY <screenshot></screenshot>.\n"
+                "After the system captures it, you'll receive the image. Describe what you see.\n\n"
+
+                "GUI AUTOMATION\n"
+                "When user asks to click, type, open/close apps, or automate anything on screen, use:\n"
+                "<automate>description of what to do</automate>\n"
+                "Example: <automate>open notepad and type hello</automate>\n"
+                "Example: <automate>close chrome</automate>\n"
+                "Example: <automate>click on the search bar</automate>\n"
+                "NEVER use PowerShell for GUI tasks. ALWAYS use <automate>.\n\n"
+
+                "CLOSING APPS\n"
+                "To close an app: <automate>close appname</automate>\n"
+                "Example: <automate>close notepad</automate>\n"
+                "Example: <automate>close chrome</automate>\n\n"
 
                 "MEMORY\n"
                 "Remember previous commands, outputs, and errors in this session.\n\n"
@@ -1412,10 +1485,16 @@ def run_chat_repl(console: Console) -> None:
                 history.append({"role": "assistant", "content": response_text})
 
                 console.print()
-                # Print the assistant response (strip <execute>/<search> blocks from display)
+                # Print the assistant response (strip command blocks from display)
                 display = EXECUTE_RE.sub("", response_text)
                 display = SEARCH_RE.sub("", display)
                 display = SCREENSHOT_RE.sub("", display)
+                display = AUTOMATE_RE.sub("", display)
+                # Strip wrong formats too (, , thinking tags)
+                display = re.sub(r"<tool>\s*(?:\[thinking\].*?</thinking>\s*)?\[screenshot\]\s*</tool>", "", display, flags=re.IGNORECASE | re.DOTALL)
+                display = re.sub(r"<tool>\s*(?:\[thinking\].*?</thinking>\s*)?\[([^\]]+)\]\s*</tool>", "", display, flags=re.IGNORECASE | re.DOTALL)
+                display = re.sub(r"<pyautogui_call>.*?</pyautogui_call>", "", display, flags=re.DOTALL)
+                display = re.sub(r"<screenshot>|</screenshot>", "", display, flags=re.IGNORECASE)
                 for line in display.splitlines():
                     if line.strip():
                         console.print(f"[bold]archangel>[/] {line}")
@@ -1425,7 +1504,7 @@ def run_chat_repl(console: Console) -> None:
                 screenshots = extract_screenshot_requests(response_text)
                 if screenshots:
                     if not llm.supports_vision():
-                        console.print("[bold]archangel>[/] [red]Screen capture requires Gemini, OpenAI, or Claude. Current provider doesn't support vision.[/]")
+                        console.print("[bold]archangel>[/] [red]Screen capture requires a vision-capable provider (Gemini, OpenAI, Claude, OpenRouter, or Groq). Current provider doesn't support vision.[/]")
                     else:
                         sc = ScreenCapture()
                         img_b64 = sc.capture()
@@ -1437,6 +1516,18 @@ def run_chat_repl(console: Console) -> None:
                             })
                         else:
                             console.print(f"[bold]archangel>[/] {img_b64}")
+                    continue
+
+                # Handle <automate>...</automate>
+                automate_requests = extract_automate_requests(response_text)
+                if automate_requests:
+                    for task_desc in automate_requests:
+                        console.print(f"[bold]archangel>[/] [dim]automating: {task_desc}[/]")
+                        result = Automator.run(task=task_desc)
+                        history.append({
+                            "role": "user",
+                            "content": f"<automate_result>{result}</automate_result>",
+                        })
                     continue
 
                 # Handle <search>...</search>

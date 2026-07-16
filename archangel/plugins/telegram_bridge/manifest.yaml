@@ -1,0 +1,8 @@
+name: telegram-bridge
+version: 0.1.0
+description: Telegram remote control bridge for Archangel
+category: notification
+author: Daksh Thanki
+permissions:
+  - TELEGRAM_BOT_TOKEN
+status: enabled

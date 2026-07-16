@@ -2,11 +2,11 @@
 # Each channel can be enabled or disabled independently.
 
 channels:
-  # telegram:
-  #   enabled: false
-  #   bot_token: "${TELEGRAM_BOT_TOKEN}"
-  #   chat_id: "${TELEGRAM_CHAT_ID}"
-  #
+  telegram:
+    enabled: true
+    bot_token: "${TELEGRAM_BOT_TOKEN}"
+    allowed_user_ids: [8741237853]
+
   # discord:
   #   enabled: false
   #   webhook_url: "${DISCORD_WEBHOOK_URL}"
