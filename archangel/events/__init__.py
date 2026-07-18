@@ -27,6 +27,11 @@ class EventBus:
 
     def publish(self, event_type: str, payload: dict[str, Any]) -> None:
         logger.debug("Event published: %s", event_type)
+        for handler in self._handlers.get(event_type, []):
+            try:
+                handler(payload)
+            except Exception as exc:
+                logger.error("Handler error for %s: %s", event_type, exc)
 
     def subscribe(self, event_type: str, handler: callable) -> None:
         self._handlers.setdefault(event_type, []).append(handler)

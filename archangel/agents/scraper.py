@@ -143,6 +143,30 @@ class SmartScraper:
     def fetch_markdown(self, url, timeout=30):
         return self.obscura.fetch_markdown(url, timeout)
 
+    def _is_recent(self, date_str: str = None, timestamp: float = None, days: int = 5) -> bool:
+        """Check if content is from last N days."""
+        import time
+        from datetime import datetime
+
+        cutoff = time.time() - (days * 24 * 60 * 60)
+
+        if timestamp:
+            return timestamp > cutoff
+
+        if date_str:
+            try:
+                # Try common formats
+                for fmt in ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%a %b %d %H:%M:%S %z %Y"]:
+                    try:
+                        dt = datetime.strptime(date_str, fmt)
+                        return dt.timestamp() > cutoff
+                    except ValueError:
+                        continue
+            except Exception:
+                pass
+
+        return True  # If can't parse, assume recent
+
     def fetch_tweet(self, url: str, timeout: int = 20) -> str:
         """Fetch tweet content via fxtwitter.com mirror."""
         fx_url = (
@@ -161,18 +185,166 @@ class SmartScraper:
         # Fallback: Obscura
         return self.obscura.fetch_text(fx_url, timeout)
 
+    def _search_google_tweets(self, query: str, max_results: int = 5) -> list[str]:
+        """Search Google for actual X/Tweet URLs."""
+        import requests
+        import re
+
+        search_query = f"site:x.com {query}"
+        url = f"https://www.google.com/search?q={requests.utils.quote(search_query)}&num={max_results}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        try:
+            resp = requests.get(url, headers=headers, timeout=10)
+            # Extract only tweet URLs (x.com/username/status/123456)
+            tweet_urls = re.findall(r'https?://(?:www\.)?x\.com/\w+/status/\d+', resp.text)
+            # Deduplicate preserving order
+            return list(dict.fromkeys(tweet_urls))[:max_results]
+        except Exception as e:
+            logger.error("Google search failed: %s", e)
+            return []
+
     def fetch_x_search_via_ddg(self, query: str, max_results: int = 5) -> list:
-        """Search X/Twitter via DuckDuckGo then fetch tweets via fxtwitter."""
+        """Search X via Google + DuckDuckGo, fetch tweets via fxtwitter."""
         from archangel.agents.chat import WebSearch
         import re
 
-        results = WebSearch().search(f"{query} site:x.com", max_results=max_results)
-        urls = re.findall(r"URL:\s*(https?://[^\s]+)", results)
-
         tweets = []
-        for url in urls[:3]:
-            if "x.com" in url or "twitter.com" in url:
-                content = self.fetch_tweet(url)
-                if content and not content.startswith("Error:"):
-                    tweets.append({"url": url, "content": content[:3000]})
+
+        # Strategy 1: Google (finds actual tweets)
+        google_urls = self._search_google_tweets(query, max_results=max_results)
+        for url in google_urls[:3]:
+            content = self.fetch_tweet(url)
+            if content and not content.startswith("Error:"):
+                tweets.append({"url": url, "content": content[:3000]})
+
+        # Strategy 2: DuckDuckGo fallback
+        if len(tweets) < 3:
+            results = WebSearch().search(f"{query} site:x.com", max_results=max_results)
+            urls = re.findall(r"URL:\s*(https?://[^\s]+)", results)
+            for url in urls[:3]:
+                # ONLY keep actual tweet URLs
+                if re.search(r'x\.com/\w+/status/\d+', url) and not any(t['url'] == url for t in tweets):
+                    content = self.fetch_tweet(url)
+                    if content and not content.startswith("Error:"):
+                        tweets.append({"url": url, "content": content[:3000]})
+
         return tweets
+
+    def fetch_reddit_rss(self, url: str, timeout: int = 15) -> str:
+        """Fetch Reddit content via RSS feed (bypasses anti-bot)."""
+        import re
+
+        # Convert Reddit URL to RSS
+        # https://www.reddit.com/r/Discord_Bots/comments/abc123/title/
+        # → https://www.reddit.com/r/Discord_Bots/comments/abc123/title/.rss
+        rss_url = url.rstrip("/")
+        if not rss_url.endswith(".rss"):
+            rss_url += "/.rss"
+
+        # Try Scrapling HTTP first
+        if not self.scrapling._init_failed:
+            try:
+                page = self.scrapling._fetcher_cls.get(rss_url, timeout=timeout, stealthy_headers=True)
+                text = page.get_all_text(separator="\n", strip=True) if hasattr(page, 'get_all_text') else str(page)
+                if text and len(text) > 50:
+                    return text
+            except Exception:
+                pass
+
+        # Fallback: try Obscura
+        return self.obscura._run(["fetch", rss_url, "--dump", "text", "--timeout", str(timeout)], timeout + 10)
+
+    def search_reddit_json(self, query: str, subreddits: list[str] = None, max_results: int = 10) -> list[dict]:
+        """Search Reddit via their public JSON API using requests (avoids Scrapling 403)."""
+        import time
+
+        if subreddits is None:
+            subreddits = [
+                "Discord_Bots", "discordapp", "automation", "SelfHosted",
+                "smallbusiness", "entrepreneur", "Python", "nocode",
+                "ChatGPT", "artificial", "MachineLearning", "webdev",
+                "Entrepreneur", "sidehustle", "SaaS", "microsaas",
+            ]
+
+        import requests as req_lib
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+        }
+
+        posts = []
+
+        for sub in subreddits:
+            try:
+                url = f"https://www.reddit.com/r/{sub}/search.json?q={query}&sort=new&limit=5&restrict_sr=1"
+                resp = req_lib.get(url, headers=headers, timeout=15)
+                if resp.status_code != 200:
+                    continue
+
+                data = resp.json()
+
+                children = data.get("data", {}).get("children", [])
+                for child in children:
+                    post_data = child.get("data", {})
+                    title = post_data.get("title", "")
+                    selftext = post_data.get("selftext", "")
+                    author = post_data.get("author", "")
+                    permalink = post_data.get("permalink", "")
+                    score = post_data.get("score", 0)
+                    num_comments = post_data.get("num_comments", 0)
+                    created_utc = post_data.get("created_utc", 0)
+
+                    if not title and not selftext:
+                        continue
+                    if score < 1 and num_comments < 1:
+                        continue
+
+                    posts.append({
+                        "title": title,
+                        "content": selftext[:2000] if selftext else "",
+                        "author": author,
+                        "url": f"https://reddit.com{permalink}",
+                        "subreddit": sub,
+                        "score": score,
+                        "comments": num_comments,
+                        "timestamp": created_utc,
+                    })
+
+                time.sleep(1)  # Rate limit
+
+            except Exception as e:
+                logger.warning("Reddit JSON search failed for r/%s: %s", sub, e)
+                continue
+
+        posts.sort(key=lambda x: x.get("score", 0) + x.get("comments", 0), reverse=True)
+        return posts[:max_results]
+
+    def search_reddit(self, query: str, max_results: int = 5) -> list[dict]:
+        """Search Reddit via JSON API, fallback to DuckDuckGo."""
+
+        # Strategy 1: Reddit JSON API (most reliable)
+        posts = self.search_reddit_json(query, max_results=max_results)
+        if posts:
+            return posts
+
+        # Strategy 2: DuckDuckGo fallback (less reliable)
+        from archangel.agents.chat import WebSearch
+        import re
+
+        results = WebSearch().search(f'{query} site:reddit.com', max_results=max_results)
+        urls = re.findall(r'URL:\s*(https?://[^\s]+)', results)
+
+        urls = [u for u in urls if not any(p in u.lower() for p in [
+            "fiverr.com", "upwork.com", "freelancer.com", "toptal.com"
+        ])]
+
+        posts = []
+        for url in urls[:3]:
+            if "reddit.com" in url:
+                content = self.fetch_reddit_rss(url)
+                if content and not content.startswith("Error:"):
+                    posts.append({"url": url, "content": content[:3000]})
+
+        return posts

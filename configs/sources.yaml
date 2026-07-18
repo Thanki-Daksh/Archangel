@@ -3,22 +3,23 @@
 # Collectors read this file to know which channels to monitor.
 
 sources:
-  # - id: telegram_jobs
-  #   type: telegram
-  #   channel: "Python Jobs"
-  #   enabled: false
-  #
-  # - id: reddit_forhire
-  #   type: reddit
-  #   subreddit: "forhire"
-  #   enabled: false
-  #
-  # - id: github_trending
-  #   type: github
-  #   topic: "python"
-  #   enabled: false
-  #
-  # - id: rss_dev
-  #   type: rss
-  #   url: "https://example.com/feed.xml"
-  #   enabled: false
+  - id: reddit_automation
+    type: reddit
+    subreddits: ["automation", "Python", "nocode", "smallbusiness", "entrepreneur"]
+    query: "need help automation"
+    max_results: 10
+    enabled: true
+
+  - id: reddit_forhire
+    type: reddit
+    subreddits: ["forhire", "freelance", "forhire"]
+    query: "looking for developer"
+    max_results: 10
+    enabled: true
+
+  - id: reddit_webdev
+    type: reddit
+    subreddits: ["webdev", "web_design", "flask", "django"]
+    query: "help needed build"
+    max_results: 10
+    enabled: true

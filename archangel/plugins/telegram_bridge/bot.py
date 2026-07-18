@@ -14,6 +14,14 @@ from .auth import is_authorized
 
 logger = logging.getLogger(__name__)
 
+SUPPLY_PLATFORMS = [
+    "fiverr.com", "upwork.com", "freelancer.com", "toptal.com",
+    "guru.com", "peopleperhour.com", "99designs.com", "angelo.com",
+    "contra.com", "freelancermap.com", "gun.io", "arc.dev",
+    "turing.com", "andela.com", "braintrust.com", "wellfound.com",
+    "yunojuno.com", "staff.com",
+]
+
 
 class ProgressIndicator:
     """Animated progress indicator using a live Telegram message."""
@@ -72,7 +80,14 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  unwatch <url> - Stop monitoring\n"
         "  watches - List monitored URLs\n"
         "  clear - Clear chat history\n"
-        "  help - Show this message\n\n"
+        "  help - Show this message\n"
+        "\n"
+        "Discord Integration:\n"
+        "  discord servers - List your Discord servers\n"
+        "  discord join <id> - Join a server\n"
+        "  discord leave <id> - Leave a server\n"
+        "  discord monitor <id> - Monitor server for leads\n"
+        "\n"
         "Or just type anything to chat with Archangel AI."
     )
 
@@ -146,34 +161,31 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def _parse_leads_query(raw: str) -> dict:
-    """Use LLM to parse user's raw message into structured search fields."""
+    """Use LLM to generate X/Twitter search queries targeting complaint language."""
     import json
     import re
     from archangel.agents.chat import LLMClient
 
     llm = LLMClient()
     prompt = (
-        "Parse this user message into structured fields for a web search. Return ONLY valid JSON.\n\n"
-        "Fields:\n"
-        "- query: search terms that will find REAL USER POSTS (not blogs, not directories, not marketing)\n"
-        "- site: the domain to search on (e.g. linkedin.com, reddit.com, x.com, discord.com) or null\n"
-        "- instructions: extra requirements (budget, timing, comment count, post age, etc.) or null\n\n"
-        "CRITICAL RULES for query:\n"
-        "- Query must target REAL PEOPLE asking for help or expressing need\n"
-        "- Good: 'looking for discord bot developer', 'need automation help', 'frustrated with manual process'\n"
-        "- Bad: 'easy discord bots' (returns bot directories), 'AI automation' (returns blog posts)\n"
-        "- Think: what would someone ACTUALLY TYPE when they need this service?\n"
-        "- Use action words: 'looking for', 'need', 'help with', 'want to hire', 'frustrated with'\n"
-        "- Keep query SHORT (3-6 words max)\n\n"
-        "Site mapping:\n"
-        "- X/Twitter → x.com\n"
-        "- Reddit → reddit.com\n"
-        "- Discord → discord.com\n"
-        "- LinkedIn → linkedin.com\n"
-        "- GitHub → github.com\n"
-        "- Or any raw domain\n\n"
-        f"User message: {raw}\n\n"
-        'Return JSON: {"query": "...", "site": "...", "instructions": "..."}'
+        "Generate 5 X/Twitter search queries to find people COMPLAINING about a manual process.\n"
+        f"Target: {raw}\n\n"
+        "People who NEED help complain. They don't ask neatly.\n"
+        "GOOD complaint patterns:\n"
+        "- 'tired of doing X manually'\n"
+        "- 'X is so frustrating'\n"
+        "- 'wish there was a way to automate X'\n"
+        "- 'spending hours on X every day'\n"
+        "- 'X keeps breaking help'\n"
+        "- 'anyone else struggle with X'\n"
+        "- 'need better tool for X'\n"
+        "- 'manual X is killing me'\n\n"
+        "AVOID these (supply-side magnets):\n"
+        "- 'anyone know how to' (attracts tutorials)\n"
+        "- 'looking for developer' (attracts freelancers)\n"
+        "- 'need help with' (attracts agencies)\n\n"
+        'Return JSON: {"queries": ["q1","q2","q3","q4","q5"], "alternatives": ["alt1","alt2"]}'
+        "\nNo subreddits needed — X/Twitter only."
     )
 
     response = llm.chat([{"role": "user", "content": prompt}])
@@ -184,7 +196,80 @@ def _parse_leads_query(raw: str) -> dict:
             return json.loads(json_match.group())
         except json.JSONDecodeError:
             pass
-    return {"query": raw, "site": None, "instructions": None}
+    return {
+        "queries": [f"tired of doing {raw} manually", f"{raw} is so frustrating", f"wish there was a way to automate {raw}", f"spending hours on {raw}", f"{raw} keeps breaking"],
+        "alternatives": [f"manual {raw} is killing me", f"anyone else struggle with {raw}"],
+    }
+
+
+SUPPLY_SIGNALS = [
+    "we offer", "our services", "hire us", "contact us", "contact me",
+    "dm me", "dm for", "message me", "shoot me a",
+    "comment below", "check my", "link in bio", "book a call",
+    "schedule a", "let's connect", "let's talk", "drop a dm",
+    "i build", "i create", "i develop", "we build", "we provide", "we deliver",
+    "my portfolio", "my agency", "our agency", "what we do",
+    "what i offer", "services include", "we specialize",
+    "available for hire", "open to work", "looking for clients",
+    "freelance", "consulting", "let me know if you need",
+    "follow for more", "subscribe", "join my", "free consultation",
+    "limited spots", "dm for info", "price list", "starting at",
+    "pricing", "get a quote", "get started", "sign up",
+]
+
+
+def _is_supply_side(content: str) -> bool:
+    lower = content.lower()
+    matches = sum(1 for signal in SUPPLY_SIGNALS if signal in lower)
+    return matches >= 2
+
+
+def _filter_supply(combined_content: str) -> str:
+    sections = combined_content.split("---\n")
+    clean = []
+    for sec in sections:
+        sec = sec.strip()
+        if not sec:
+            continue
+        if _is_supply_side(sec):
+            continue
+        clean.append(sec)
+    return "\n---\n".join(clean)
+
+
+def _build_combined_content(scraper, queries, alternatives):
+    """Search X/Twitter only. Runs 5 queries (3 primary + 2 alternative), dedups, returns up to 15 tweets."""
+    all_urls_seen = set()
+    combined = ""
+    tweets = []
+
+    for q in queries[:3]:
+        results = scraper.fetch_x_search_via_ddg(q, max_results=5)
+        for t in results:
+            if t['url'] not in all_urls_seen:
+                all_urls_seen.add(t['url'])
+                tweets.append(t)
+
+    if len(tweets) < 3 and alternatives:
+        for alt_q in alternatives[:2]:
+            results = scraper.fetch_x_search_via_ddg(alt_q, max_results=5)
+            for t in results:
+                if t['url'] not in all_urls_seen:
+                    all_urls_seen.add(t['url'])
+                    tweets.append(t)
+
+    if tweets:
+        combined += "=== X/TWITTER POSTS ===\n"
+        for t in tweets[:15]:
+            author = t['url'].split('/')[3] if '/' in t.get('url', '') else '?'
+            combined += (
+                f"Author: @{author}\n"
+                f"Profile: https://x.com/{author}\n"
+                f"URL: {t['url']}\n"
+                f"{t['content'][:1000]}\n---\n"
+            )
+
+    return combined, len(tweets)
 
 
 @auth_required
@@ -195,159 +280,142 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parts = text.split(None, 1)
     if len(parts) < 2:
         await update.message.reply_text(
-            'Usage: leads <query> [site:<platform>]\n\n'
-            'Just describe what you want naturally:\n'
-            '  leads "AI automation" site:discord\n'
-            '  leads easy discord bots site: X budget 300-1000$\n'
-            '  leads python freelance work\n\n'
-            'Supported sites: linkedin, reddit, discord, x, github, stackoverflow, medium\n'
-            'Or use any domain: site:customsite.com'
+            'Usage: leads <what you need>\n\n'
+            'Examples:\n'
+            '  leads ai automation help\n'
+            '  leads need python developer\n'
+            '  leads discord bot help\n'
+            'Just describe what you want built.'
         )
         return
 
     raw_query = parts[1].strip().strip('"').strip("'")
-
     status_msg = await update.message.reply_text("🔍 Parsing your request...")
-    progress = ProgressIndicator(status_msg)
 
     try:
-        from archangel.agents.chat import WebSearch, LLMClient
+        from archangel.agents.chat import LLMClient
         from archangel.agents.scraper import SmartScraper
-        import re
 
-        # Step 1: LLM parses the raw message
+        await status_msg.edit_text("🧠 Understanding what you need...")
         parsed = _parse_leads_query(raw_query)
-        search_terms = parsed.get("query", raw_query)
-        site_domain = parsed.get("site")
-        instructions = parsed.get("instructions")
+        queries = parsed.get("queries", [raw_query])
+        alternatives = parsed.get("alternatives", [])
+
+        parse_log = f"✅ Parsed: {raw_query}"
+        await status_msg.edit_text(parse_log)
+        await asyncio.sleep(0.5)
 
         scraper = SmartScraper()
-        combined_content = ""
-        is_x = site_domain and ("x.com" in site_domain or "twitter" in site_domain)
 
-        if is_x:
-            # Search X via DuckDuckGo + fetch content via fxtwitter mirror
-            await progress.update("🔍 Searching X/Twitter via DuckDuckGo...")
-            x_tweets = scraper.fetch_x_search_via_ddg(search_terms, max_results=5)
+        # Step 1-2: Search X/Twitter only
+        await status_msg.edit_text(f"{parse_log}\n\n🔍 Searching X/Twitter...")
+        combined_content, tweet_count = _build_combined_content(
+            scraper, queries, alternatives
+        )
 
-            if x_tweets:
-                tweet_content = "\n\n---\n\n".join(
-                    [f"URL: {t['url']}\n\n{t['content']}" for t in x_tweets]
-                )
-                combined_content += f"=== X/TWITTER POSTS (via fxtwitter) ===\n{tweet_content[:6000]}\n\n"
-            else:
-                combined_content += "=== X/TWITTER ===\nNo tweet content found.\n\n"
+        # Step 3: Supply-side pre-filter
+        filtered_content = _filter_supply(combined_content)
 
-            # Reddit: DDG snippets only — no direct scraping (blocked)
-            await progress.update("🔍 Searching Reddit discussions...")
-            reddit_results = WebSearch().search(f'{search_terms} site:reddit.com', max_results=5)
-            reddit_urls = re.findall(r'URL:\s*(https?://[^\s]+)', reddit_results)
-            if reddit_urls:
-                reddit_links = "\n".join(f"Reddit result: {url}" for url in reddit_urls[:5])
-                combined_content += f"=== REDDIT DISCUSSIONS (DuckDuckGo) ===\n{reddit_links}\n\n"
+        if not filtered_content.strip():
+            filtered_content = combined_content  # Use unfiltered if filter removes everything
 
-        else:
-            if site_domain:
-                search_query = f'{search_terms} site:{site_domain}'
-            else:
-                search_query = search_terms
+        total_found = f"{tweet_count} tweets"
+        await status_msg.edit_text(f"{parse_log}\n\n✅ Found {total_found}")
 
-            await progress.update("🔍 Searching the web...")
-            results = WebSearch().search(search_query, max_results=5)
-            urls = re.findall(r'URL:\s*(https?://[^\s]+)', results)
-
-            if not urls:
-                await progress.error("❌ No results found.")
-                return
-
-            pages = []
-            all_links = []
-            for i, url in enumerate(urls[:3]):
-                await progress.update(f"⚙️ Scraping page {i+1}/{min(len(urls), 3)}...")
-                content = scraper.fetch_text(url, timeout=20)
-                if content and not content.startswith("Error:"):
-                    pages.append(f"URL: {url}\n\n{content[:3000]}")
-                    links_output = scraper.fetch_links(url, timeout=20)
-                    if links_output and not links_output.startswith("Error:"):
-                        all_links.append(f"Links from {url}:\n{links_output[:2000]}")
-
-            if not pages:
-                await progress.error("❌ Could not scrape any pages.")
-                return
-
-            combined_content = f"=== SEARCH RESULTS ===\n{'---'.join(pages)}\n\n"
-            if all_links:
-                combined_content += f"=== EXTRACTED LINKS ===\n{'---'.join(all_links)}\n\n"
-
-        if not combined_content.strip():
-            await progress.error("❌ No content found to analyze.")
-            return
-
-        # Context hint based on site
-        if is_x:
-            context_hint = (
-                "Look for tweets from real users expressing pain points, asking for help, "
-                "seeking developers, or discussing automation needs. "
-                "Focus on individual users, not corporate accounts or bots. "
-                "Each tweet includes author, text, and engagement metrics."
-            )
-        elif site_domain:
-            if "discord" in site_domain:
-                context_hint = "Look for people asking for help, seeking automation services, or discussing pain points in Discord servers."
-            elif "reddit" in site_domain:
-                context_hint = "Look for Reddit threads where people are asking for recommendations, expressing frustration, or seeking automation solutions."
-            elif "linkedin" in site_domain:
-                context_hint = "Look for LinkedIn posts or articles where companies express AI automation needs or executives discuss digital transformation."
-            elif "github" in site_domain:
-                context_hint = "Look for GitHub issues, discussions, or repos where people need automation help."
-            elif "stackoverflow" in site_domain:
-                context_hint = "Look for StackOverflow questions where people struggle with automation or repetitive tasks."
-            else:
-                context_hint = f"Look for people or companies on {site_domain} showing interest in or need for AI automation services."
-        else:
-            context_hint = "Find people or companies showing interest in or need for AI automation services."
-
-        # LLM extracts leads
-        await progress.update("💡 Analyzing leads with AI...")
+        # Step 4: LLM extracts leads — no SKIPPED output
+        await status_msg.edit_text(f"{parse_log}\n\n💡 Analyzing leads with AI...")
         llm = LLMClient()
-        prompt = (
-            f"Analyze these results and extract potential leads for an AI automation service.\n"
-            f"{context_hint}\n\n"
-        )
-        if instructions:
-            prompt += f"User's specific requirements: {instructions}\n\n"
 
-        prompt += (
-            "For EACH lead, extract:\n"
-            "- Company/Person name\n"
-            "- Profile URL (twitter handle, linkedin.com/in/, discord handle, reddit username, etc.)\n"
-            "- Post/Content URL (link to the specific post or tweet)\n"
-            "- What they need (pain point)\n"
-            "- Why they're a good lead\n"
-            "- Contact signal (named person, handle, email, etc.)\n\n"
-            "Numbered list. Be concise. Only genuine leads showing real interest or need.\n"
-            "Skip irrelevant results (official accounts, login pages, bot directories, marketing blogs).\n\n"
-            f"Search: {search_terms}\n"
-            f"Site: {'X/Twitter + Reddit' if is_x else (site_domain or 'All')}\n\n"
-            f"{combined_content}"
-        )
-        response = llm.chat([{"role": "user", "content": prompt}])
+        def _run_llm(content, query, attempt=1):
+            prompt = (
+                "Extract demand-side leads from these posts.\n"
+                "A lead is someone SEEKING help, a developer, or automation.\n"
+                "Do NOT list posts you skipped. Only list actual leads.\n\n"
+                "INCLUDE if the person is:\n"
+                "- Asking for help or recommendations\n"
+                "- Expressing frustration with a process\n"
+                "- Looking to hire or contract someone\n"
+                "- Questioning how to build/automate something\n"
+                "- Mentioning a budget or timeline\n\n"
+                "EXCLUDE silently (do not mention in output):\n"
+                "- Service providers, agencies, freelancers offering help\n"
+                "- Corporate accounts, product announcements\n"
+                "- Educational content, tutorials, news\n\n"
+                "FOR EACH LEAD:\n"
+                "- @handle or u/username\n"
+                "- Profile URL\n"
+                "- Post URL\n"
+                "- What they need (1 sentence)\n"
+                "- Date\n\n"
+                "Return ONLY leads. If genuinely zero leads exist, say:\n"
+                "'Try: looking for developer to build [specific thing]'\n\n"
+                f"Query: {query}\n\n"
+                f"{content[:8000]}"
+            )
+            return llm.chat([{"role": "user", "content": prompt}])
 
-        # Store for save command
+        response = _run_llm(filtered_content, raw_query)
+
+        # Step 5: Auto-retry with broader query if zero leads
+        if "1." not in response and "http" not in response.lower():
+            broader = f"tired of doing {raw_query} manually"
+            await status_msg.edit_text(f"{parse_log}\n\n🔍 Trying broader: '{broader}'...")
+            broader_scraper = SmartScraper()
+            broader_combined, _ = _build_combined_content(
+                broader_scraper, [broader], []
+            )
+            broader_filtered = _filter_supply(broader_combined)
+            if broader_filtered.strip():
+                response = _run_llm(broader_filtered, broader)
+
+        # Step 6: Post-process
+        response = _ensure_profile_urls(response)
+
         bridge = context.application.bot_data["bridge"]
         bridge.last_leads = response
         bridge.last_leads_query = raw_query
 
-        # Delete progress, send real response
-        await progress.done()
-        site_label = f" on {'X + Reddit' if is_x else site_domain}" if (is_x or site_domain) else ""
-        header = f"🎯 Leads for: {search_terms}{site_label}\n\n"
+        lead_count = response.count("1. ")
+        if lead_count > 0:
+            done_text = f"✅ Found {lead_count} potential leads."
+        else:
+            done_text = "✅ Done."
+        await status_msg.edit_text(f"{parse_log}\n\n{done_text}")
+        await asyncio.sleep(1)
+        await status_msg.delete()
+
+        header = f"🎯 Leads for: {raw_query}\n\n"
         full_response = header + response
         for part in bridge._split_message(full_response):
             await update.message.reply_text(part)
 
     except Exception as exc:
-        await progress.error(f"❌ Leads search failed: {exc}")
+        try:
+            await status_msg.edit_text(f"❌ Error: {exc}")
+            await asyncio.sleep(3)
+            await status_msg.delete()
+        except Exception:
+            pass
+
+
+def _ensure_profile_urls(text: str) -> str:
+    """Post-process LLM response to ensure every lead has a profile URL."""
+    import re
+    lines = text.split('\n')
+    result = []
+    for line in lines:
+        if '@' in line and 'Profile' not in line and 'http' not in line:
+            handle_match = re.search(r'@(\w+)', line)
+            if handle_match:
+                handle = handle_match.group(1)
+                line += f"\nProfile: https://x.com/{handle}"
+        if 'u/' in line and 'Profile' not in line and 'reddit.com' not in line:
+            user_match = re.search(r'u/(\w+)', line)
+            if user_match:
+                username = user_match.group(1)
+                line += f"\nProfile: https://reddit.com/user/{username}"
+        result.append(line)
+    return '\n'.join(result)
 
 
 @auth_required
@@ -506,6 +574,149 @@ async def watches_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("\n".join(lines))
 
 
+# --- Discord Command Handlers ---
+
+@auth_required
+async def discord_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle all discord subcommands."""
+    text = update.message.text.strip()
+    if text.startswith("/"):
+        text = text[1:]
+    parts = text.split()
+
+    if len(parts) < 2 or parts[1] == "help":
+        await update.message.reply_text(
+            "Discord Commands:\n"
+            "  discord servers - List your servers\n"
+            "  discord join <id> - Join a server\n"
+            "  discord leave <id> - Leave a server\n"
+            "  discord monitor <id> - Monitor for leads"
+        )
+        return
+
+    subcommand = parts[1].lower()
+
+    if subcommand == "servers":
+        status_msg = await update.message.reply_text("🔍 Fetching your Discord servers...")
+        try:
+            from archangel.agents.composio_discord import ComposioDiscord
+            discord = ComposioDiscord()
+            servers = discord.list_servers()
+
+            if not servers:
+                await status_msg.edit_text("❌ No servers found. Check COMPOSIO_API_KEY in .env")
+                return
+
+            lines = ["📋 Your Discord Servers:\n"]
+            for i, server in enumerate(servers[:20], 1):
+                name = server.get("name", "Unknown")
+                gid = server.get("id", "?")
+                lines.append(f"{i}. {name}\n   ID: {gid}")
+
+            await status_msg.edit_text("\n".join(lines))
+        except Exception as e:
+            await status_msg.edit_text(f"❌ Error: {e}")
+
+    elif subcommand == "join":
+        if len(parts) < 3:
+            await update.message.reply_text("Usage: discord join <server_id>")
+            return
+        guild_id = parts[2]
+        status_msg = await update.message.reply_text(f"🔍 Joining server {guild_id}...")
+        try:
+            from archangel.agents.composio_discord import ComposioDiscord
+            discord = ComposioDiscord()
+            result = discord.join_server(guild_id)
+            if result["success"]:
+                await status_msg.edit_text("✅ Joined server!")
+            else:
+                await status_msg.edit_text(f"❌ Failed: {result.get('error', 'Unknown error')}")
+        except Exception as e:
+            await status_msg.edit_text(f"❌ Error: {e}")
+
+    elif subcommand == "leave":
+        if len(parts) < 3:
+            await update.message.reply_text("Usage: discord leave <server_id>")
+            return
+        guild_id = parts[2]
+        status_msg = await update.message.reply_text(f"🔍 Leaving server {guild_id}...")
+        try:
+            from archangel.agents.composio_discord import ComposioDiscord
+            discord = ComposioDiscord()
+            result = discord.leave_server(guild_id)
+            if result["success"]:
+                await status_msg.edit_text("✅ Left server!")
+            else:
+                await status_msg.edit_text(f"❌ Failed: {result.get('error', 'Unknown error')}")
+        except Exception as e:
+            await status_msg.edit_text(f"❌ Error: {e}")
+
+    elif subcommand == "monitor":
+        if len(parts) < 3:
+            await update.message.reply_text("Usage: discord monitor <server_id>")
+            return
+        guild_id = parts[2]
+        status_msg = await update.message.reply_text(f"🔍 Monitoring server {guild_id}...")
+        try:
+            from archangel.agents.composio_discord import ComposioDiscord
+            from archangel.agents.chat import LLMClient
+            import asyncio
+            import re
+
+            discord = ComposioDiscord()
+            channels = discord.get_channels(guild_id)
+            text_channels = [c for c in channels if c.get("type") == 0]
+
+            if not text_channels:
+                await status_msg.edit_text("❌ No text channels found.")
+                return
+
+            all_messages = []
+            for ch in text_channels[:5]:
+                ch_id = ch.get("id")
+                ch_name = ch.get("name", "?")
+                msgs = discord.get_messages(ch_id, limit=20)
+                for m in msgs:
+                    m["channel_name"] = ch_name
+                all_messages.extend(msgs)
+
+            if not all_messages:
+                await status_msg.edit_text("❌ No messages found.")
+                return
+
+            await status_msg.edit_text(f"✅ Fetched {len(all_messages)} messages.\n💡 Analyzing for leads...")
+
+            llm = LLMClient()
+            messages_text = "\n\n".join([
+                f"#{m.get('channel_name', '?')} | u/{m.get('author', {}).get('username', '?')}: {m.get('content', '')[:200]}"
+                for m in all_messages[:50]
+            ])
+
+            prompt = (
+                "Extract demand-side leads from these Discord messages.\n"
+                "Only include people SEEKING help, not offering services.\n"
+                "Skip bots, moderators, corporate accounts.\n"
+                "Only last 5 days.\n\n"
+                "For each lead: username, channel, what they need, why good lead.\n\n"
+                f"Messages:\n{messages_text}"
+            )
+            response = llm.chat([{"role": "user", "content": prompt}])
+
+            bridge = context.application.bot_data["bridge"]
+            bridge.last_leads = response
+            bridge.last_leads_query = f"Discord server {guild_id}"
+
+            lead_count = len(re.findall(r'\d+\.\s', response))
+            await status_msg.edit_text(f"✅ Done! Found ~{lead_count} leads.")
+            await asyncio.sleep(1)
+            await status_msg.delete()
+
+            for part in bridge._split_message(f"🎯 Discord Leads from {guild_id}\n\n{response}"):
+                await update.message.reply_text(part)
+        except Exception as e:
+            await status_msg.edit_text(f"❌ Error: {e}")
+
+
 # --- Smart Router ---
 
 @auth_required
@@ -549,6 +760,10 @@ async def smart_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await unwatch_handler(update, context)
     if lower == "watches":
         return await watches_handler(update, context)
+
+    # Discord commands (unified handler)
+    if lower.startswith("discord"):
+        return await discord_handler(update, context)
 
     # Default: chat with AI
     if not update.message or not update.message.text:
