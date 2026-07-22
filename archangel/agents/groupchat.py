@@ -37,8 +37,9 @@ class GroupChatEngine:
             "1. NO YAPPING or intro speeches ('Greetings', 'I am the...'). Get straight to business.\n"
             "2. Keep each turn short, punchy, and direct (1-2 sentences max per turn).\n"
             "3. Limit the conversation to EXACTLY 2 to 4 agent responses (turns) per round. NEVER exceed 4 agent turns.\n"
-            "4. Commander acts as room moderator, assigning the next speaker or concluding the task.\n"
-            "5. Format each response turn strictly as:\n"
+            "4. NEVER FABRICATE OR HALLUCINATE FAKE LEADS, fake post titles, fake URLs, or fake filenames. Rely strictly on real scraped data or real system status.\n"
+            "5. Commander acts as room moderator, assigning the next speaker or concluding the task.\n"
+            "6. Format each response turn strictly as:\n"
             "   [archangel.agents.<agent_name>]: <agent response>\n"
         )
 
@@ -48,7 +49,12 @@ class GroupChatEngine:
         Optional turn_callback(agent_name, text) is called sequentially per turn.
         """
         from archangel.agents.chat import LLMClient
+        from archangel.agents.scraper import SmartScraper
+        from archangel.storage import StorageAgent
+        from archangel.models import Lead
         from archangel.cli import commands as _cli_commands
+        import time
+        import uuid
 
         try:
             llm = LLMClient()
@@ -62,10 +68,51 @@ class GroupChatEngine:
 
         self.history.append({"role": "user", "content": goal})
 
+        # Check if the goal requests finding / searching for leads
+        real_data_context = ""
+        goal_lower = goal.lower()
+        if any(k in goal_lower for k in ("find", "search", "get", "fetch", "scrape", "lead", "leads")):
+            try:
+                scraper = SmartScraper()
+                # Clean query
+                clean_q = goal_lower
+                for word in ("find", "search", "get", "fetch", "scrape", "leads", "lead", "on reddit", "on x", "score them", "save to storage", "5", "10"):
+                    clean_q = clean_q.replace(word, "")
+                clean_q = clean_q.strip() or "python"
+
+                reddit_posts = scraper.search_reddit_json(clean_q, max_results=5)
+                if reddit_posts:
+                    real_data_context = "\n\nREAL LIVE DATA SCRAPED FROM REDDIT:\n"
+                    storage = StorageAgent()
+                    for idx, p in enumerate(reddit_posts, 1):
+                        real_data_context += f"{idx}. Title: {p.get('title')} | Subreddit: r/{p.get('subreddit')} | Author: {p.get('author')} | URL: {p.get('url')}\n"
+                        # Save real lead to database
+                        try:
+                            lead = Lead(
+                                id=str(uuid.uuid4())[:8],
+                                raw_post_id=f"reddit_{idx}_{int(time.time())}",
+                                confidence_score=0.85,
+                                score=85,
+                                title=p.get('title', '')[:100],
+                                summary=p.get('content', '')[:200],
+                                source="reddit",
+                                url=p.get('url', ''),
+                                author=p.get('author', ''),
+                                budget_estimate="Medium",
+                                urgency="High",
+                            )
+                            storage.save_lead(lead)
+                        except Exception as e:
+                            logger.debug("Failed saving lead: %s", e)
+                else:
+                    real_data_context = "\n\nREAL LIVE DATA SCRAPED: 0 live posts found matching query. Report 0 leads found truthfully."
+            except Exception as exc:
+                logger.warning("Groupchat real scraping failed: %s", exc)
+
         prompt = (
-            f"{self.get_group_system_prompt()}\n\n"
+            f"{self.get_group_system_prompt()}{real_data_context}\n\n"
             f"User Goal: {goal}\n\n"
-            "Simulate the conversation between 2 to 4 relevant agents to execute or address this goal.\n"
+            "Generate the conversation between 2 to 4 relevant agents to execute or address this goal using the real data provided above.\n"
             "Constraint: Output between 2 and 4 turns max.\n"
             "Format each speaker strictly as:\n"
             "[archangel.agents.<name>]: <message>\n"

@@ -20,6 +20,7 @@ CHAT_COMMAND_FLAGS: dict[str, list[str]] = {
     "config":  ["show", "validate"],
     "key":     ["list"],
     "models":  ["status", "change", "groq"],
+    "logs":    ["50", "100", "200"],
     "clear":   [],
     "history": [],
     "export":  [],
@@ -464,9 +465,12 @@ def cmd_help(args: list[str], console: Any, history: list) -> bool:
     return False
 
 
-def cmd_exit(args: list[str], console: Any, history: list) -> bool:
-    """Exit chat back to archangel.main>."""
-    return True
+def cmd_logs_slash(args: list[str], console: Any, history: list) -> bool:
+    """View runtime logs."""
+    from archangel.cli.main import cmd_logs as _main_cmd_logs
+    tail = int(args[0]) if args and args[0].isdigit() else 50
+    _main_cmd_logs(console, tail=tail)
+    return False
 
 
 COMMANDS = {
@@ -474,6 +478,7 @@ COMMANDS = {
     "config":  {"handler": cmd_config,       "desc": "Open/show/validate config"},
     "key":     {"handler": cmd_key,          "desc": "View/set API keys"},
     "models":  {"handler": cmd_models,       "desc": "List/switch AI providers"},
+    "logs":    {"handler": cmd_logs_slash,   "desc": "View runtime log lines"},
     "clear":   {"handler": cmd_clear,        "desc": "Clear chat screen"},
     "history": {"handler": cmd_history_fn,   "desc": "Show chat history (N)"},
     "export":  {"handler": cmd_export,       "desc": "Export chat to .md file"},
