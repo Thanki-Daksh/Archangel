@@ -862,6 +862,64 @@ def run_agents_hub_repl(console: Console) -> None:
             console.print(f"[red]Error from archangel.agents.{target_agent}: {exc}[/]")
 
 
+def run_groupchat_repl(console: Console) -> None:
+    """Multi-agent collaborative group conversation room."""
+    from archangel.agents.groupchat import GroupChatEngine
+
+    engine = GroupChatEngine()
+
+    console.print()
+    console.print(Panel.fit(
+        "[bold cyan]👥 archangel.agents.groupchat — Multi-Agent Collaboration Room[/]\n"
+        "[dim]All 7 agents (Commander, Collector, Intelligence, Scoring, Storage, Guardian, Notification) collaborate here.[/]\n"
+        "[italic #c0c0c0]Type exit, quit, or back to return to archangel.main>[/]",
+        border_style="cyan",
+    ))
+    console.print()
+
+    prompt_str = "archangel.agents.groupchat> "
+
+    session = None
+    try:
+        from prompt_toolkit import PromptSession
+        from prompt_toolkit.history import FileHistory
+        hist_path = Path.home() / ".archangel_groupchat_history"
+        hist_path.parent.mkdir(parents=True, exist_ok=True)
+        session = PromptSession(prompt_str, history=FileHistory(str(hist_path)))
+    except Exception:
+        pass
+
+    while True:
+        try:
+            if session:
+                raw = session.prompt()
+            else:
+                raw = input(prompt_str)
+        except (EOFError, KeyboardInterrupt):
+            console.print()
+            break
+
+        raw = raw.strip()
+        if not raw:
+            continue
+
+        if raw.lower() in ("exit", "quit", "back", "/exit", "/back"):
+            console.print()
+            break
+
+        console.print(f"[dim]Initiating multi-agent collaboration...[/dim]")
+        turns = engine.process_user_goal(raw)
+        console.print()
+        for turn in turns:
+            agent = turn.get("agent", "commander")
+            text = turn.get("text", "")
+            console.print(f"[bold cyan]archangel.agents.{agent}>[/]")
+            for line in text.splitlines():
+                if line.strip():
+                    console.print(f"  {line}")
+            console.print()
+
+
 def run_agent_chat_repl(console: Console, agent_name: str) -> None:
     """Enter an interactive multi-turn AI chat mode with a specific agent persona."""
     agent = agent_name.lower().replace("archangel.", "").replace("agents.", "")
@@ -1267,6 +1325,9 @@ def _execute_repl_command(console: Console, segment: str) -> bool:
 
     elif _cmd in ("agents", "archangel.agents", "archangel.agents.hub"):
         run_agents_hub_repl(console)
+
+    elif _cmd in ("groupchat", "group-chat", "archangel.agents.groupchat", "archangel.groupchat"):
+        run_groupchat_repl(console)
 
     elif _cmd.startswith("archangel.") or _cmd in (
         "collector", "intelligence", "scoring", "guardian", "commander", "storage", "notification"
@@ -2376,6 +2437,18 @@ def agent_storage() -> None:
 def agent_notification() -> None:
     """Interact directly with archangel.notification delivery agent."""
     cmd_agent_dispatch(_console, "notification")
+
+
+@cli.command("agents")
+def agents_cmd() -> None:
+    """Start the central agents topic-routing hub."""
+    run_agents_hub_repl(_console)
+
+
+@cli.command("groupchat")
+def groupchat_cmd() -> None:
+    """Start the multi-agent groupchat room."""
+    run_groupchat_repl(_console)
 
 
 # ---------------------------------------------------------------------------

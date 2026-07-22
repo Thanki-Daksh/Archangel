@@ -1,61 +1,77 @@
-# 💬 Agent Chat — Direct Subsystem Communication
+# 💬 Agent Chat — Direct Subsystem Communication & Groupchat
 
-Why talk to a generic AI bot that tries to do everything when you can speak directly to the specialized agent running that part of Archangel?
+Why talk to a generic AI bot that tries to do everything when you can speak directly to the specialized agents running Archangel?
 
-Agent Chat gives every core subsystem in Archangel—from the Web Collector to the Database Storage engine—its own dedicated AI persona and interactive chat session.
+Agent Chat gives every core subsystem in Archangel—from the Web Collector to the Database Storage engine—its own dedicated AI persona, topic-routing hub, and multi-agent groupchat room.
 
 ---
 
 ## ⚡ How to Chat with Agents
 
-You can talk to any of Archangel's 7 core agents either in **Interactive Multi-Turn Mode** or via **Quick One-Shot Queries**.
+You can interact with Archangel's 7 core agents in 4 flexible ways:
 
-### 1. Interactive Chat Mode
-Type `<agent> chat` or `archangel.<agent> chat` in the terminal or REPL to drop into a dedicated sub-shell for that agent:
+### 1. Interactive Single-Agent Chat Mode
+Type `<agent> chat` or `archangel.agents.<agent>` in the terminal or REPL to drop into a dedicated sub-shell for that agent:
 
 ```bash
-# In your terminal or inside archangel.main>
 archangel.main> collector chat
 ```
 
-This opens a dedicated prompt (`archangel.collector> `) where you can have a continuous back-and-forth conversation.
+This opens prompt `archangel.agents.collector>` for continuous back-and-forth conversation.
 
-| Command | Target Agent | Best Used For |
+| Command | Prompt | Target Subsystem |
 | :--- | :--- | :--- |
-| `collector chat` | `archangel.collector` | Web scraping, RSS feeds, Reddit search, X/Twitter filters |
-| `commander chat` | `archangel.commander` | Platform orchestration, agent tasks, workflow status |
-| `intelligence chat` | `archangel.intelligence` | Lead classification rules, buyer intent, complaint phrases |
-| `scoring chat` | `archangel.scoring` | Urgency formulas, lead ranking metrics, budget confidence |
-| `guardian chat` | `archangel.guardian` | System health checks, diagnostic errors, error logs |
-| `storage chat` | `archangel.storage` | SQLite WAL database stats, lead export formats, schema |
-| `notification chat` | `archangel.notification` | Telegram bot alerts, Discord webhooks, message formatting |
+| `collector chat` | `archangel.agents.collector>` | Web scraping, RSS feeds, Reddit JSON API, X/Twitter search |
+| `commander chat` | `archangel.agents.commander>` | Platform orchestration, agent tasks, workflow status |
+| `intelligence chat` | `archangel.agents.intelligence>` | Lead classification rules, buyer intent, complaint phrases |
+| `scoring chat` | `archangel.scoring>` | Urgency formulas, lead ranking metrics, budget rating |
+| `guardian chat` | `archangel.guardian>` | System health checks, diagnostic errors, error logs |
+| `storage chat` | `archangel.storage>` | SQLite WAL database stats, lead export formats, schema |
+| `notification chat` | `archangel.notification>` | Telegram bot alerts, Discord webhooks, message formatting |
 
-> 💡 **To Exit:** Type `exit`, `quit`, or `back` at any time to return to `archangel.main>`.
+---
 
-### 2. Quick One-Shot Queries
-If you just want a fast answer without leaving your main workflow, pass your question directly on the command line:
+### 2. Central Agent Topic-Routing Hub (`agents`)
+Type `agents` or `archangel.agents` to enter the central agent hub (`archangel.agents>`).
+
+In this hub, **all 7 agents are active**. Type any question without specifying an agent name, and the Hub automatically routes your message to the matching domain expert agent.
+
+---
+
+### 3. Multi-Agent Groupchat Room (`groupchat`)
+Type `groupchat` or `archangel.agents.groupchat` to enter the multi-agent collaboration room (`archangel.agents.groupchat>`).
+
+Throw a high-level goal into the room:
+> *"Find 5 Python scraping leads on Reddit, score them, save to storage, and alert Telegram"*
+
+All 7 agents take turns conversing, delegating, and executing the objective collaboratively in sequence:
 
 ```text
-archangel.main> collector "how do I add a custom RSS feed?"
-archangel.main> intelligence "evaluate: looking to hire python dev for scraping script"
-archangel.main> guardian "what is the current status of all background tasks?"
+archangel.agents.groupchat> Find 5 Python scraping leads and notify Telegram
+
+archangel.agents.commander>
+  Initiating group workflow. Assigning data discovery to Collector.
+
+archangel.agents.collector>
+  Found 5 Reddit posts matching 'Python scraping'. Passing to Intelligence for classification.
+
+archangel.agents.intelligence>
+  Analyzed 5 posts: 3 verified demand-side leads. Passing to Scoring.
+
+archangel.agents.scoring>
+  Lead 1 (9.2/10), Lead 2 (8.5/10), Lead 3 (7.8/10). Passing to Storage.
+
+archangel.agents.storage>
+  Saved 3 leads into SQLite WAL database. Passing to Notification.
+
+archangel.agents.notification>
+  Dispatched Telegram alert for 3 top leads. Task complete.
 ```
 
 ---
 
 ## ⚙️ How It Works Under the Hood
 
-When you start an Agent Chat:
-
-1. **System Persona Injection**: Archangel instantly equips the LLM with a specialized system prompt tailored specifically to that agent's exact domain rules and responsibilities.
-2. **Dedicated Command History**: Every agent maintains its own persistent history file in your user home directory (`~/.archangel_<agent>_history`), so tab-completion and prompt history remember your previous agent conversations.
-3. **Real-time Tool Access**: Agents can execute PowerShell commands (`<execute>`) or perform live web lookups (`<search>`) to inspect system states or gather facts for you while you chat.
-
----
-
-## 🔥 Why This Matters (The Benefits)
-
-- **Domain-Specific Answers**: The Collector agent talks like a web scraping specialist; the Storage agent talks like a database administrator. You get accurate, focused answers.
-- **Instant System Diagnostics**: Instead of reading raw log files, you can simply ask `guardian chat` why a task failed or ask `storage chat` how many leads were saved today.
-- **Fast Rule Tuning**: Want to tweak how Archangel identifies leads? Jump into `intelligence chat` to discuss complaint language patterns and refine your detection strategy.
-- **Clean Sub-REPL Workflow**: The custom prompt (`archangel.collector>`) keeps your workspace organized so you always know which component you are instructing.
+1. **System Persona Injection**: Each agent receives a specialized domain system prompt defining its expertise.
+2. **Dedicated Command History**: History files are persisted (`~/.archangel_<agent>_history`, `~/.archangel_groupchat_history`) for seamless tab completion.
+3. **Structured Agent Handoffs**: In groupchat mode, the Commander agent moderates turn-taking and passes data outputs between sibling agents.
