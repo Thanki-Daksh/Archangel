@@ -817,7 +817,7 @@ def run_agent_chat_repl(console: Console, agent_name: str) -> None:
             else:
                 raw = input(prompt_str)
         except (EOFError, KeyboardInterrupt):
-            console.print(f"\n[yellow]Exiting archangel.{agent} chat mode -> returning to archangel.main>[/]")
+            console.print()
             break
 
         raw = raw.strip()
@@ -825,7 +825,7 @@ def run_agent_chat_repl(console: Console, agent_name: str) -> None:
             continue
 
         if raw.lower() in ("exit", "quit", "back", "/exit", "/back"):
-            console.print(f"[yellow]Exiting archangel.{agent} chat mode -> returning to archangel.main>[/]")
+            console.print()
             break
 
         history.append({"role": "user", "content": raw})
@@ -1632,7 +1632,7 @@ def run_chat_repl(console: Console) -> None:
                     return
                 _last_ctrl_c = now
                 if _countdown_or_second_ctrl_c(console):
-                    console.print("\n[yellow]Returning to archangel.main>[/]")
+                    console.print()
                     return
                 continue
 
@@ -1642,11 +1642,11 @@ def run_chat_repl(console: Console) -> None:
             if raw.startswith("/"):
                 should_exit = handle_slash_command(raw, console, history)
                 if should_exit:
-                    console.print("[yellow]archangel> Returning to archangel.main>[/]")
+                    console.print()
                     return
                 continue
             if raw.lower() in ("exit", "quit"):
-                console.print("[yellow]Returning to archangel.main>[/]")
+                console.print()
                 return
 
             history.append({"role": "user", "content": raw})
