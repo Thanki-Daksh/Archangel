@@ -863,19 +863,37 @@ def run_agents_hub_repl(console: Console) -> None:
             console.print(f"[red]Error from archangel.agents.{target_agent}: {exc}[/]")
 
 
+def _animate_agent_typing(console: Console, agent: str) -> None:
+    """Display animated 'the <agent> agent is typing...' effect."""
+    import time
+    msg = f"the {agent} agent is typing"
+    for dots in (".", "..", "..."):
+        console.print(f"\r[dim cyan]  {msg}{dots}[/dim cyan]", end="")
+        time.sleep(0.18)
+    console.print("\r" + " " * (len(msg) + 12) + "\r", end="")
+
+
+def _render_groupchat_header(console: Console, busy_agent: Optional[str] = None) -> None:
+    status_str = "[bold green]🟢 Online: 7[/bold green]"
+    if busy_agent:
+        status_str += f"   [bold red]⬢ Busy: {busy_agent}[/bold red]"
+    console.print(Panel(
+        f"[bold cyan]👥 archangel.agents.groupchat — Multi-Agent Collaboration Room[/]   |   {status_str}\n"
+        "[dim]All 7 agents collaborate here (2-4 agents respond per round max).[/]\n"
+        "[italic #c0c0c0]Type exit, quit, or back to return to archangel.main> | Type status for online/busy details.[/]",
+        border_style="cyan",
+        expand=True,
+    ))
+
+
 def run_groupchat_repl(console: Console) -> None:
     """Multi-agent collaborative group conversation room."""
-    from archangel.agents.groupchat import GroupChatEngine
+    from archangel.agents.groupchat import GroupChatEngine, AGENT_ROLES
 
     engine = GroupChatEngine()
 
     console.print()
-    console.print(Panel.fit(
-        "[bold cyan]👥 archangel.agents.groupchat — Multi-Agent Collaboration Room[/]\n"
-        "[dim]All 7 agents (Commander, Collector, Intelligence, Scoring, Storage, Guardian, Notification) collaborate here.[/]\n"
-        "[italic #c0c0c0]Type exit, quit, or back to return to archangel.main>[/]",
-        border_style="cyan",
-    ))
+    _render_groupchat_header(console)
     console.print()
 
     prompt_str = "archangel.agents.groupchat> "
@@ -908,17 +926,33 @@ def run_groupchat_repl(console: Console) -> None:
             console.print()
             break
 
-        console.print(f"[dim]Initiating multi-agent collaboration...[/dim]")
+        if raw.lower() in ("status", "online", "busy", "list"):
+            console.print()
+            console.print("[bold green]🟢 Online Agents (7):[/bold green]")
+            for name in AGENT_ROLES:
+                console.print(f"  - [bold cyan]archangel.agents.{name}[/bold cyan]")
+            console.print()
+            console.print("[bold red]⬢ Busy Agents:[/bold red]")
+            if engine.busy_agent:
+                console.print(f"  - [bold red]archangel.agents.{engine.busy_agent}[/bold red] (active task)")
+            else:
+                console.print("  - [dim]None (All agents idle & ready)[/dim]")
+            console.print()
+            continue
+
         turns = engine.process_user_goal(raw)
         console.print()
         for turn in turns:
             agent = turn.get("agent", "commander")
             text = turn.get("text", "")
+            _animate_agent_typing(console, agent)
+            _render_groupchat_header(console, busy_agent=agent)
             console.print(f"[bold cyan]archangel.agents.{agent}>[/]")
             for line in text.splitlines():
                 if line.strip():
                     console.print(f"  {line}")
             console.print()
+        _render_groupchat_header(console, busy_agent=None)
 
 
 def run_agent_chat_repl(console: Console, agent_name: str) -> None:

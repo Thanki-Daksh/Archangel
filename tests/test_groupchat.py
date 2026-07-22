@@ -4,7 +4,7 @@ from archangel.agents.groupchat import GroupChatEngine, AGENT_ROLES
 
 def test_groupchat_engine_init():
     engine = GroupChatEngine()
-    assert engine.max_turns_per_round == 5
+    assert engine.max_turns_per_round == 4
     assert len(engine.history) == 0
     prompt = engine.get_group_system_prompt()
     assert "ARCHANGEL MULTI-AGENT GROUPCHAT" in prompt
