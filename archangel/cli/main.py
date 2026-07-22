@@ -792,6 +792,80 @@ def _classify_agent_topic(text: str) -> str:
     return "intelligence"
 
 
+def get_archangel_keybindings():
+    """Create custom key bindings for Ctrl+Z (Undo), Ctrl+Y (Redo), Ctrl+A, Ctrl+E, Ctrl+U, Ctrl+K, Ctrl+L, Ctrl+W."""
+    try:
+        from prompt_toolkit.key_binding import KeyBindings
+
+        kb = KeyBindings()
+
+        @kb.add("c-z")
+        def _undo(event):
+            event.current_buffer.undo()
+
+        @kb.add("c-y")
+        def _redo(event):
+            event.current_buffer.redo()
+
+        @kb.add("c-a")
+        def _home(event):
+            event.current_buffer.cursor_position = 0
+
+        @kb.add("c-e")
+        def _end(event):
+            event.current_buffer.cursor_position = len(event.current_buffer.text)
+
+        @kb.add("c-u")
+        def _clear_line_before(event):
+            pos = event.current_buffer.cursor_position
+            event.current_buffer.text = event.current_buffer.text[pos:]
+            event.current_buffer.cursor_position = 0
+
+        @kb.add("c-k")
+        def _clear_line_after(event):
+            pos = event.current_buffer.cursor_position
+            event.current_buffer.text = event.current_buffer.text[:pos]
+
+        @kb.add("c-l")
+        def _clear_screen(event):
+            event.app.renderer.clear()
+
+        @kb.add("c-w")
+        def _delete_word_before(event):
+            event.current_buffer.delete_before_cursor(count=1)
+
+        return kb
+    except Exception:
+        return None
+
+
+def _create_prompt_session(
+    prompt_str: str,
+    hist_filename: str,
+    completer=None,
+    complete_while_typing: bool = False
+):
+    """Helper to create a PromptSession with custom Ctrl key bindings and persistent history."""
+    try:
+        from prompt_toolkit import PromptSession
+        from prompt_toolkit.history import FileHistory
+
+        hist_path = Path.home() / hist_filename
+        hist_path.parent.mkdir(parents=True, exist_ok=True)
+        kb = get_archangel_keybindings()
+        kwargs = {
+            "history": FileHistory(str(hist_path)),
+            "key_bindings": kb,
+        }
+        if completer:
+            kwargs["completer"] = completer
+            kwargs["complete_while_typing"] = complete_while_typing
+
+        return PromptSession(prompt_str, **kwargs)
+    except Exception:
+        return None
+
+
 def run_agents_hub_repl(console: Console) -> None:
     """Hub where all 7 agents are present. Messages are automatically routed to the matching agent."""
     from dotenv import load_dotenv
@@ -815,15 +889,7 @@ def run_agents_hub_repl(console: Console) -> None:
 
     prompt_str = "archangel.agents> "
 
-    session = None
-    try:
-        from prompt_toolkit import PromptSession
-        from prompt_toolkit.history import FileHistory
-        hist_path = Path.home() / ".archangel_agents_hub_history"
-        hist_path.parent.mkdir(parents=True, exist_ok=True)
-        session = PromptSession(prompt_str, history=FileHistory(str(hist_path)))
-    except Exception:
-        pass
+    session = _create_prompt_session(prompt_str, ".archangel_agents_hub_history")
 
     while True:
         try:
@@ -898,15 +964,7 @@ def run_groupchat_repl(console: Console) -> None:
 
     prompt_str = "archangel.agents.groupchat> "
 
-    session = None
-    try:
-        from prompt_toolkit import PromptSession
-        from prompt_toolkit.history import FileHistory
-        hist_path = Path.home() / ".archangel_groupchat_history"
-        hist_path.parent.mkdir(parents=True, exist_ok=True)
-        session = PromptSession(prompt_str, history=FileHistory(str(hist_path)))
-    except Exception:
-        pass
+    session = _create_prompt_session(prompt_str, ".archangel_groupchat_history")
 
     while True:
         try:
@@ -999,15 +1057,7 @@ def run_agent_chat_repl(console: Console, agent_name: str) -> None:
 
     prompt_str = f"archangel.agents.{agent}> "
 
-    session = None
-    try:
-        from prompt_toolkit import PromptSession
-        from prompt_toolkit.history import FileHistory
-        hist_path = Path.home() / f".archangel_{agent}_history"
-        hist_path.parent.mkdir(parents=True, exist_ok=True)
-        session = PromptSession(prompt_str, history=FileHistory(str(hist_path)))
-    except Exception:
-        pass
+    session = _create_prompt_session(prompt_str, f".archangel_{agent}_history")
 
     while True:
         try:
@@ -1623,9 +1673,9 @@ def run_repl(console: Console) -> None:
         REPL_HISTORY.parent.mkdir(parents=True, exist_ok=True)
 
         completer = _ArchangelCompleter()
-        session = PromptSession(
+        session = _create_prompt_session(
             "archangel.main> ",
-            history=FileHistory(str(REPL_HISTORY)),
+            ".archangel_repl_history",
             completer=completer,
             complete_while_typing=False,
         )
@@ -1724,15 +1774,9 @@ def run_chat_repl(console: Console) -> None:
     _DOUBLE_CTRL_C_WINDOW = 3.0
 
     if _use_pt:
-        from prompt_toolkit import PromptSession
-        from prompt_toolkit.history import FileHistory
-
-        _chat_history = Path.home() / ".archangel_chat_history"
-        _chat_history.parent.mkdir(parents=True, exist_ok=True)
-
-        session = PromptSession(
+        session = _create_prompt_session(
             "archangel.chat> ",
-            history=FileHistory(str(_chat_history)),
+            ".archangel_chat_history",
             completer=_ChatCompleter(),
             complete_while_typing=True,
         )
