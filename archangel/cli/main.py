@@ -470,13 +470,26 @@ def cmd_export(console: Console, fmt: str = "json",
 
 
 def cmd_leads(console: Console, query: str | None = None, limit: int = 10) -> bool:
-    """Fetch live leads or display saved leads with direct clickable URLs in CLI."""
+    """Fetch live leads or display saved leads with direct clickable URLs in CLI.
+
+    Supports `max: N` in the query string, e.g.:
+        /leads "custom bot" max: 4
+        /leads discord bot max:3
+    """
     from archangel.storage import StorageBackend
     from archangel.agents.scraper import SmartScraper
     from archangel.models import RawPost, LeadAnalysis, LeadScore
     import time
+    import re
 
     storage = StorageBackend.get_instance()
+
+    # ── Parse `max: N` from the query string ──
+    if query:
+        max_match = re.search(r'\bmax:\s*(\d+)', query, re.IGNORECASE)
+        if max_match:
+            limit = int(max_match.group(1))
+            query = re.sub(r'\bmax:\s*\d+', '', query, flags=re.IGNORECASE).strip()
 
     if not query or query.strip().lower() in ("list", "saved", "all"):
         leads = storage.get_leads(limit=limit)
@@ -503,7 +516,7 @@ def cmd_leads(console: Console, query: str | None = None, limit: int = 10) -> bo
     # Real Live Search Query
     query = query.strip().strip('"').strip("'")
     console.print()
-    console.print(f"[bold cyan]🔍 Searching live leads for: [bold white]\"{query}\"[/bold white]...[/bold cyan]")
+    console.print(f'[bold cyan]🔍 Searching live leads for: [bold white]"{query}"[/bold white] (max: {limit})...[/bold cyan]')
 
     scraper = SmartScraper()
     posts = scraper.search_reddit(query, max_results=limit)
@@ -2431,11 +2444,18 @@ def scan() -> None:
 
 
 @cli.command("leads")
-@click.argument("query", required=False, default="")
+@click.argument("query", nargs=-1)
 @click.option("--limit", default=10, help="Maximum number of leads to fetch or display.")
-def leads_cli_command(query: str, limit: int) -> None:
-    """Fetch live leads from Reddit/X or list saved database leads with direct clickable links."""
-    cmd_leads(_console, query=query, limit=limit)
+def leads_cli_command(query: tuple, limit: int) -> None:
+    """Fetch live leads from Reddit/X or list saved database leads.
+
+    Examples:
+        archangel leads "discord bot"
+        archangel leads custom bot max: 4
+        archangel leads "python developer" max:3 --limit 5
+    """
+    query_str = " ".join(query).strip()
+    cmd_leads(_console, query=query_str, limit=limit)
 
 
 @cli.command()

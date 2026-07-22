@@ -276,14 +276,17 @@ class SmartScraper:
         # Fallback: try Obscura
         return self.obscura._run(["fetch", rss_url, "--dump", "text", "--timeout", str(timeout)], timeout + 10)
 
-    # ── Buyer-intent signals ──────────────────────────────────────────
+    # ── Buyer-intent signals (STRICT — only real demand signals) ─────
     _BUYER_KEYWORDS = (
-        "hiring", "looking for", "need a", "need help", "seeking",
-        "want to hire", "freelancer needed", "budget", "paid",
-        "for hire", "[hiring]", "[for hire]", "paying", "commission",
-        "help needed", "developer needed", "looking to pay",
-        "will pay", "project", "contract", "remote", "part-time",
-        "full-time", "urgently need", "asap", "gig", "bounty",
+        "[hiring]", "hiring", "want to hire", "looking to hire",
+        "need a developer", "need a bot", "need a coder", "need a programmer",
+        "need help building", "need someone to build",
+        "freelancer needed", "developer needed", "coder needed",
+        "looking for a developer", "looking for someone", "looking for a freelancer",
+        "will pay", "paying", "paid", "budget",
+        "help needed", "urgently need", "asap",
+        "gig", "bounty", "commission",
+        "looking to pay", "custom bot request",
     )
 
     # Subreddits where real buyers post
@@ -311,6 +314,8 @@ class SmartScraper:
             "looking for work", "looking for a job", "open to work",
             "seeking employment", "available for freelance",
             "my portfolio", "my services", "i offer",
+            "looking for remote", "open for", "i can build",
+            "i can make", "i can create", "i can develop",
         )
         return any(sig in t for sig in supply_signals)
 
@@ -440,8 +445,8 @@ class SmartScraper:
                     # Deduplicate
                     if any(p["url"] == url for p in posts):
                         continue
-                    # Must have buyer intent in the title or body
-                    if not self._has_buyer_intent(title, body):
+                    # For DDG results: require buyer intent in TITLE (body is unreliable — contains sidebar/comment text)
+                    if not self._has_buyer_intent(title, ""):
                         continue
                     # Skip supply-side (people offering, not hiring)
                     if self._is_supply_side(title):
