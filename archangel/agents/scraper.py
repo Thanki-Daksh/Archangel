@@ -276,56 +276,68 @@ class SmartScraper:
         # Fallback: try Obscura
         return self.obscura._run(["fetch", rss_url, "--dump", "text", "--timeout", str(timeout)], timeout + 10)
 
-    # ── Buyer-intent signals (STRICT — only real demand signals) ─────
-    _BUYER_KEYWORDS = (
+    # ── Buyer-intent signals ──────────────────────────────────────────
+    # Strong signals that appear in TITLES of demand-side posts
+    _TITLE_DEMAND_KEYWORDS = (
         "[hiring]", "hiring", "want to hire", "looking to hire",
         "need a developer", "need a bot", "need a coder", "need a programmer",
-        "need help building", "need someone to build",
+        "need help building", "need someone to build", "need someone to",
         "freelancer needed", "developer needed", "coder needed",
         "looking for a developer", "looking for someone", "looking for a freelancer",
+        "looking for a bot", "looking for help",
         "will pay", "paying", "paid", "budget",
-        "help needed", "urgently need", "asap",
+        "help needed", "urgently need",
         "gig", "bounty", "commission",
         "looking to pay", "custom bot request",
+        "need help", "need a", "looking for",
     )
 
-    # Subreddits where real buyers post
-    _LEAD_SUBREDDITS = [
-        "forhire", "slavelabour", "jobbit", "hiring",
-        "freelance", "remotejs", "remotepython", "PythonJobs",
-        "webdev", "gameDevClassifieds", "DesignJobs",
-        "Entrepreneur", "smallbusiness", "startups",
-        "SaaS", "microsaas", "sidehustle",
-        "automation", "Discord_Bots", "discordapp",
-    ]
+    # Signals that appear in post BODY indicating buyer intent
+    _BODY_DEMAND_KEYWORDS = (
+        "hiring", "will pay", "budget", "paid", "paying",
+        "looking for a developer", "looking for someone",
+        "need a developer", "need a bot", "freelancer needed",
+        "dm me", "send me a message", "contact me",
+        "how much would", "what would it cost", "quote",
+    )
+
+    # Supply-side signals — people OFFERING services, NOT hiring
+    _SUPPLY_SIGNALS = (
+        "[for hire]", "for hire", "available for work",
+        "i am a developer", "i'm a developer", "hire me",
+        "looking for work", "looking for a job", "open to work",
+        "seeking employment", "available for freelance",
+        "my portfolio", "my services", "i offer",
+        "looking for remote", "open for", "i can build",
+        "i can make", "i can create", "i can develop",
+        "i'm available", "i am available",
+    )
 
     def _has_buyer_intent(self, title: str, body: str) -> bool:
         """Check if a post shows genuine buyer/hiring intent."""
-        combined = (title + " " + body).lower()
-        return any(kw in combined for kw in self._BUYER_KEYWORDS)
+        t = title.lower()
+        # Strong: title contains demand keyword
+        if any(kw in t for kw in self._TITLE_DEMAND_KEYWORDS):
+            return True
+        # Weaker: body contains demand keyword (only if body is provided)
+        if body:
+            b = body.lower()
+            return any(kw in b for kw in self._BODY_DEMAND_KEYWORDS)
+        return False
 
     def _is_supply_side(self, title: str) -> bool:
-        """Detect supply-side posts (people OFFERING services, not HIRING).
-        We want to skip these — we only want demand-side leads."""
+        """Detect supply-side posts (people OFFERING services, not HIRING)."""
         t = title.lower()
-        supply_signals = (
-            "[for hire]", "for hire", "available for work",
-            "i am a developer", "i'm a developer", "hire me",
-            "looking for work", "looking for a job", "open to work",
-            "seeking employment", "available for freelance",
-            "my portfolio", "my services", "i offer",
-            "looking for remote", "open for", "i can build",
-            "i can make", "i can create", "i can develop",
-        )
-        return any(sig in t for sig in supply_signals)
+        return any(sig in t for sig in self._SUPPLY_SIGNALS)
 
     def search_reddit_json(self, query: str, subreddits: list[str] = None, max_results: int = 10) -> list[dict]:
-        """Search Reddit via their public JSON API for buyer-intent leads."""
+        """Search Reddit via GLOBAL search endpoint for buyer-intent leads.
+
+        Uses 1 global search request instead of per-subreddit requests
+        to avoid rate limiting.
+        """
         import time
         import requests as req_lib
-
-        if subreddits is None:
-            subreddits = self._LEAD_SUBREDDITS
 
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
@@ -333,14 +345,17 @@ class SmartScraper:
 
         posts = []
 
-        # Single query with intent keywords — faster than 3 queries per sub
-        intent_query = f"{query} hiring OR looking for OR need"
+        # Build intent-boosted search queries for Reddit global search
+        search_queries = [
+            f"{query} (hiring OR need OR paid OR looking for)",
+            query,  # plain fallback
+        ]
 
-        for sub in subreddits:
+        for sq in search_queries:
             if len(posts) >= max_results:
                 break
             try:
-                url = f"https://www.reddit.com/r/{sub}/search.json?q={intent_query}&sort=new&limit=10&restrict_sr=1&t=month"
+                url = f"https://www.reddit.com/search.json?q={sq}&sort=new&limit=25&t=month"
                 resp = req_lib.get(url, headers=headers, timeout=15)
                 if resp.status_code == 429:
                     time.sleep(2)
@@ -356,6 +371,7 @@ class SmartScraper:
                     selftext = post_data.get("selftext", "")
                     author = post_data.get("author", "")
                     permalink = post_data.get("permalink", "")
+                    subreddit = post_data.get("subreddit", "")
                     score = post_data.get("score", 0)
                     num_comments = post_data.get("num_comments", 0)
                     created_utc = post_data.get("created_utc", 0)
@@ -367,14 +383,13 @@ class SmartScraper:
                         continue
 
                     full_url = f"https://reddit.com{permalink}"
-                    # Deduplicate by URL
                     if any(p["url"] == full_url for p in posts):
                         continue
 
-                    # Must show buyer intent
+                    # Must show buyer intent (title or body)
                     if not self._has_buyer_intent(title, selftext):
                         continue
-                    # Skip supply-side posts (people offering services, not hiring)
+                    # Skip supply-side
                     if self._is_supply_side(title):
                         continue
 
@@ -383,39 +398,36 @@ class SmartScraper:
                         "content": selftext[:2000] if selftext else "",
                         "author": author or "unknown",
                         "url": full_url,
-                        "subreddit": sub,
+                        "subreddit": subreddit or "reddit",
                         "score": score,
                         "comments": num_comments,
                         "timestamp": created_utc,
                     })
 
-                time.sleep(0.5)  # Rate limit
+                time.sleep(0.5)
 
             except Exception as e:
-                logger.warning("Reddit JSON search failed for r/%s: %s", sub, e)
+                logger.warning("Reddit global search failed for q=%s: %s", sq, e)
                 continue
 
-        # Sort by engagement (score + comments) — higher = more active demand
         posts.sort(key=lambda x: x.get("score", 0) + x.get("comments", 0), reverse=True)
         return posts[:max_results]
 
     def search_reddit(self, query: str, max_results: int = 5) -> list[dict]:
-        """Search Reddit for buyer-intent leads. JSON API first, DDG fallback."""
+        """Search Reddit for buyer-intent leads. Global JSON API first, DDG fallback."""
         import time
 
-        # Strategy 1: Reddit JSON API targeting hiring subreddits
+        # Strategy 1: Reddit global search (fast — 1-2 requests)
         posts = self.search_reddit_json(query, max_results=max_results)
-        if posts:
+        if len(posts) >= max_results:
             return posts
 
-        # Strategy 2: DuckDuckGo with buyer-intent search queries
+        # Strategy 2: DuckDuckGo fallback with simple queries
         from archangel.agents.chat import WebSearch
 
-        # Build multiple intent-targeted DDG queries
         ddg_queries = [
-            f'"{query}" hiring OR "looking for" OR "need a developer" site:reddit.com',
-            f'"{query}" (forhire OR freelance OR "[hiring]") site:reddit.com',
-            f'"{query}" "budget" OR "paid" OR "will pay" site:reddit.com',
+            f'{query} hiring site:reddit.com',
+            f'{query} "need" OR "looking for" OR "paid" site:reddit.com',
         ]
 
         for ddg_q in ddg_queries:
@@ -442,13 +454,11 @@ class SmartScraper:
 
                     if not url or "reddit.com" not in url:
                         continue
-                    # Deduplicate
                     if any(p["url"] == url for p in posts):
                         continue
-                    # For DDG results: require buyer intent in TITLE (body is unreliable — contains sidebar/comment text)
+                    # For DDG: check title for demand signals
                     if not self._has_buyer_intent(title, ""):
                         continue
-                    # Skip supply-side (people offering, not hiring)
                     if self._is_supply_side(title):
                         continue
 
