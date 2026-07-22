@@ -98,6 +98,38 @@ Archangel features an automatic multi-provider fallback engine. If your active L
 
 ---
 
+## 🔎 Real Live Lead Discovery & Direct Clickable Links
+
+Archangel includes real live scraping against active internet sources (Reddit JSON API & DuckDuckGo search) with zero hallucination.
+
+### 1. Dedicated `leads` Command
+Run live searches or list saved database leads with direct clickable URLs right inside your terminal:
+
+```bash
+# Search live leads for a topic
+archangel leads "python developer"
+
+# Search from inside any REPL or chat room
+/leads python automation
+
+# List all saved database leads
+archangel leads list
+```
+
+**Output Preview**:
+```text
+🔍 Searching live leads for: "python developer"...
+
+✅ Found 3 live leads with direct links:
+
+1. r/remotepython on Reddit: For Hire PHP/Python Developer
+   🔗 https://www.reddit.com/r/remotepython/comments/...
+   👤 Author: u/reddit_community | Subreddit: r/remotepython
+   📝 Looking for python developer to automate...
+```
+
+---
+
 ## 🤖 Telegram Remote Control Bridge
 
 To start the interactive Telegram bot bridge:
