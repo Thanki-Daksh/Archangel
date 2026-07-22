@@ -490,8 +490,6 @@ docs/
 
 08-Roadmap.md
 
-09-Implementation.md
-
 diagrams/
 ```
 

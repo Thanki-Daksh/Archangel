@@ -1046,7 +1046,6 @@ These should be implemented as extensions, not architectural rewrites.
 | Plugins | `docs/06-Plugin-System.md` |
 | Configuration | `docs/07-Configuration.md` |
 | Roadmap | `docs/08-Roadmap.md` |
-| Implementation | `docs/09-Implementation.md` |
 
 ---
 
