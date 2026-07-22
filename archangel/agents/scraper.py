@@ -343,28 +343,46 @@ class SmartScraper:
 
     def search_reddit(self, query: str, max_results: int = 5) -> list[dict]:
         """Search Reddit via JSON API, fallback to DuckDuckGo."""
+        import time
 
-        # Strategy 1: Reddit JSON API (most reliable)
+        # Strategy 1: Reddit JSON API
         posts = self.search_reddit_json(query, max_results=max_results)
         if posts:
             return posts
 
-        # Strategy 2: DuckDuckGo fallback (less reliable)
+        # Strategy 2: DuckDuckGo search fallback (extract title, url, body directly)
         from archangel.agents.chat import WebSearch
-        import re
+        try:
+            ddg_text = WebSearch().search(f'{query} site:reddit.com', max_results=max_results)
+            if ddg_text and "No results found" not in ddg_text:
+                blocks = ddg_text.split("\n\n")
+                for block in blocks:
+                    lines = block.strip().splitlines()
+                    if not lines:
+                        continue
+                    title = lines[0].lstrip("0123456789. ")
+                    url = ""
+                    body = ""
+                    for l in lines[1:]:
+                        if l.strip().startswith("URL:"):
+                            url = l.replace("URL:", "").strip()
+                        else:
+                            body += " " + l.strip()
+                    if url and "reddit.com" in url:
+                        sub = "reddit"
+                        if "/r/" in url:
+                            sub = url.split("/r/")[1].split("/")[0]
+                        posts.append({
+                            "title": title or "Reddit Post",
+                            "content": body.strip(),
+                            "author": "reddit_community",
+                            "url": url,
+                            "subreddit": sub,
+                            "score": 10,
+                            "comments": 2,
+                            "timestamp": time.time(),
+                        })
+        except Exception as exc:
+            logger.warning("DDG Reddit fallback failed: %s", exc)
 
-        results = WebSearch().search(f'{query} site:reddit.com', max_results=max_results)
-        urls = re.findall(r'URL:\s*(https?://[^\s]+)', results)
-
-        urls = [u for u in urls if not any(p in u.lower() for p in [
-            "fiverr.com", "upwork.com", "freelancer.com", "toptal.com"
-        ])]
-
-        posts = []
-        for url in urls[:3]:
-            if "reddit.com" in url:
-                content = self.fetch_reddit_rss(url)
-                if content and not content.startswith("Error:"):
-                    posts.append({"url": url, "content": content[:3000]})
-
-        return posts
+        return posts[:max_results]

@@ -48,6 +48,10 @@ class GroupChatEngine:
 
         Optional turn_callback(agent_name, text) is called sequentially per turn.
         """
+        from dotenv import load_dotenv
+        from pathlib import Path
+        load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
+
         from archangel.agents.chat import LLMClient
         from archangel.agents.scraper import SmartScraper
         from archangel.storage import StorageBackend
@@ -79,7 +83,7 @@ class GroupChatEngine:
                     clean_q = clean_q.replace(word, "")
                 clean_q = clean_q.strip() or "python"
 
-                reddit_posts = scraper.search_reddit_json(clean_q, max_results=5)
+                reddit_posts = scraper.search_reddit(clean_q, max_results=5)
                 if reddit_posts:
                     real_data_context = "\n\nREAL LIVE DATA SCRAPED FROM REDDIT:\n"
                     storage = StorageBackend.get_instance()
