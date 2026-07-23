@@ -115,6 +115,37 @@ class StorageBackend:
                     tier_used TEXT,
                     FOREIGN KEY (raw_post_id) REFERENCES raw_posts(id)
                 );
+
+                CREATE TABLE IF NOT EXISTS lead_enrichments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    raw_post_id INTEGER NOT NULL UNIQUE,
+                    domain TEXT,
+                    company_name TEXT,
+                    detected_tech TEXT,
+                    social_links TEXT,
+                    enrichment_data TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (raw_post_id) REFERENCES raw_posts(id)
+                );
+
+                CREATE TABLE IF NOT EXISTS lead_lifecycle (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    raw_post_id INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    notes TEXT,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (raw_post_id) REFERENCES raw_posts(id)
+                );
+
+                CREATE TABLE IF NOT EXISTS lead_feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    raw_post_id INTEGER NOT NULL,
+                    feedback_type TEXT NOT NULL,
+                    rating REAL,
+                    features TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (raw_post_id) REFERENCES raw_posts(id)
+                );
             """)
             self._conn.commit()
 
@@ -283,6 +314,124 @@ class StorageBackend:
                 return [dict(row) for row in cursor.fetchall()]
             except Exception as exc:
                 logger.error("get_lead_sources failed: %s", exc)
+                return []
+
+    def store_enrichment(
+        self,
+        raw_post_id: int,
+        domain: str = "",
+        company_name: str = "",
+        detected_tech: list = None,
+        social_links: list = None,
+        enrichment_data: dict = None,
+    ) -> int:
+        with self._write_lock:
+            cursor = self._conn.cursor()
+            try:
+                cursor.execute(
+                    """INSERT OR REPLACE INTO lead_enrichments
+                       (raw_post_id, domain, company_name, detected_tech, social_links, enrichment_data)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (
+                        raw_post_id,
+                        domain,
+                        company_name,
+                        json.dumps(detected_tech or []),
+                        json.dumps(social_links or []),
+                        json.dumps(enrichment_data or {}),
+                    ),
+                )
+                self._conn.commit()
+                return cursor.lastrowid or 0
+            except Exception as exc:
+                logger.error("store_enrichment failed: %s", exc)
+                return 0
+
+    def get_enrichment(self, raw_post_id: int) -> Optional[dict[str, Any]]:
+        with self._write_lock:
+            cursor = self._conn.cursor()
+            try:
+                row = cursor.execute(
+                    "SELECT * FROM lead_enrichments WHERE raw_post_id = ?",
+                    (raw_post_id,),
+                ).fetchone()
+                if row:
+                    res = dict(row)
+                    res["detected_tech"] = json.loads(res.get("detected_tech") or "[]")
+                    res["social_links"] = json.loads(res.get("social_links") or "[]")
+                    res["enrichment_data"] = json.loads(res.get("enrichment_data") or "{}")
+                    return res
+                return None
+            except Exception as exc:
+                logger.error("get_enrichment failed: %s", exc)
+                return None
+
+    def update_lead_status(self, raw_post_id: int, status: str, notes: str = "") -> int:
+        with self._write_lock:
+            cursor = self._conn.cursor()
+            try:
+                cursor.execute(
+                    """INSERT INTO lead_lifecycle (raw_post_id, status, notes)
+                       VALUES (?, ?, ?)""",
+                    (raw_post_id, status, notes),
+                )
+                self._conn.commit()
+                return cursor.lastrowid or 0
+            except Exception as exc:
+                logger.error("update_lead_status failed: %s", exc)
+                return 0
+
+    def get_lead_lifecycle(self, raw_post_id: int) -> List[dict[str, Any]]:
+        with self._write_lock:
+            cursor = self._conn.cursor()
+            try:
+                cursor.execute(
+                    "SELECT * FROM lead_lifecycle WHERE raw_post_id = ? ORDER BY updated_at ASC",
+                    (raw_post_id,),
+                )
+                return [dict(row) for row in cursor.fetchall()]
+            except Exception as exc:
+                logger.error("get_lead_lifecycle failed: %s", exc)
+                return []
+
+    def store_feedback(
+        self,
+        raw_post_id: int,
+        feedback_type: str,
+        rating: float = 1.0,
+        features: dict = None,
+    ) -> int:
+        with self._write_lock:
+            cursor = self._conn.cursor()
+            try:
+                cursor.execute(
+                    """INSERT INTO lead_feedback (raw_post_id, feedback_type, rating, features)
+                       VALUES (?, ?, ?, ?)""",
+                    (raw_post_id, feedback_type, rating, json.dumps(features or {})),
+                )
+                self._conn.commit()
+                return cursor.lastrowid or 0
+            except Exception as exc:
+                logger.error("store_feedback failed: %s", exc)
+                return 0
+
+    def get_feedback_history(self, limit: int = 200) -> List[dict[str, Any]]:
+        with self._write_lock:
+            cursor = self._conn.cursor()
+            try:
+                cursor.execute(
+                    "SELECT * FROM lead_feedback ORDER BY created_at DESC LIMIT ?",
+                    (limit,),
+                )
+                rows = cursor.fetchall()
+                res = []
+                for r in rows:
+                    item = dict(r)
+                    item["features"] = json.loads(item.get("features") or "{}")
+                    res.append(item)
+                return res
+            except Exception as exc:
+                logger.error("get_feedback_history failed: %s", exc)
                 return []
 
     def close(self) -> None:
