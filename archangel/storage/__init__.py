@@ -146,6 +146,16 @@ class StorageBackend:
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (raw_post_id) REFERENCES raw_posts(id)
                 );
+
+                CREATE TABLE IF NOT EXISTS lead_revenue (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    raw_post_id INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    source TEXT,
+                    notes TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (raw_post_id) REFERENCES raw_posts(id)
+                );
             """)
             self._conn.commit()
 
@@ -432,6 +442,37 @@ class StorageBackend:
                 return res
             except Exception as exc:
                 logger.error("get_feedback_history failed: %s", exc)
+                return []
+
+    def store_revenue(
+        self,
+        raw_post_id: int,
+        amount: float,
+        source: str = "",
+        notes: str = "",
+    ) -> int:
+        with self._write_lock:
+            cursor = self._conn.cursor()
+            try:
+                cursor.execute(
+                    """INSERT INTO lead_revenue (raw_post_id, amount, source, notes)
+                       VALUES (?, ?, ?, ?)""",
+                    (raw_post_id, amount, source, notes),
+                )
+                self._conn.commit()
+                return cursor.lastrowid or 0
+            except Exception as exc:
+                logger.error("store_revenue failed: %s", exc)
+                return 0
+
+    def get_revenue_records(self) -> List[dict[str, Any]]:
+        with self._write_lock:
+            cursor = self._conn.cursor()
+            try:
+                cursor.execute("SELECT * FROM lead_revenue ORDER BY created_at DESC")
+                return [dict(row) for row in cursor.fetchall()]
+            except Exception as exc:
+                logger.error("get_revenue_records failed: %s", exc)
                 return []
 
     def close(self) -> None:

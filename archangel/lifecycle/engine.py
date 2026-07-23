@@ -20,7 +20,7 @@ VALID_LIFECYCLE_STATES = [
 TRANSITION_MAP = {
     "discovered": ["analyzed", "archived"],
     "analyzed": ["contacted", "archived"],
-    "contacted": ["responded", "lost", "archived"],
+    "contacted": ["responded", "won", "lost", "archived"],
     "responded": ["negotiating", "lost", "archived"],
     "negotiating": ["won", "lost", "archived"],
     "won": ["paid", "archived"],
