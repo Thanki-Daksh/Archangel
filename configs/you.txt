@@ -1,0 +1,7 @@
+# Archangel User Profile Memory (you.txt)
+# Type your background, skills, budget requirements, and exclusions in plain text bullet points.
+
+1. I build fullstack web applications using Python, FastAPI, React, and Next.js
+2. I specialize in AI automation bots, web scraping scripts, and Telegram/Discord bots
+3. I prefer remote freelance contracts with budget over $1,000
+4. I do NOT want WordPress, PHP, or unpaid internships

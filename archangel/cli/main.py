@@ -42,7 +42,7 @@ REPL_HISTORY = Path.home() / ".archangel_history"
 REPL_COMMANDS = [
     "status", "watch", "scan", "doctor", "config",
     "export", "logs", "purge", "update", "version",
-    "registry", "chat", "automate", "clear", "help", "exit", "quit", "ascii"
+    "registry", "chat", "automate", "clear", "help", "exit", "quit"
 ]
 
 # ---------------------------------------------------------------------------
@@ -819,7 +819,6 @@ _REPL_HELP = """\
   [green]chat[/]            Open the AI chat REPL
   [green]clear[/]           Clear the terminal screen
   [green]version[/]         Display version
-  [green]ascii[/]           Display the official Archangel ASCII artwork
   [green]help detailed[/]   Display full detailed manual & agent directives
   [green]exit[/green]/[green]quit[/]       Shut down and exit
 
@@ -961,17 +960,6 @@ def _execute_repl_command(console: Console, segment: str) -> bool:
 
     elif _cmd == "version":
         cmd_version(console)
-
-    elif _cmd == "ascii":
-        try:
-            from pathlib import Path
-            art_path = Path(__file__).resolve().parents[2] / "archangel_art.txt"
-            if art_path.exists():
-                console.print(art_path.read_text(encoding="utf-8"), markup=False, highlight=False)
-            else:
-                console.print("[red]ASCII artwork file not found.[/]")
-        except Exception as exc:
-            console.print(f"[red]Error displaying ASCII art: {exc}[/]")
 
     else:
         console.print(f"[red]Unknown command:[/] {_cmd}")
@@ -2038,20 +2026,6 @@ def agents_cmd() -> None:
 def groupchat_cmd() -> None:
     """Start the multi-agent groupchat room."""
     run_groupchat_repl(_console)
-
-
-@cli.command("ascii")
-def ascii_cmd() -> None:
-    """Display the official Archangel ASCII artwork."""
-    try:
-        from pathlib import Path
-        art_path = Path(__file__).resolve().parents[2] / "archangel_art.txt"
-        if art_path.exists():
-            _console.print(art_path.read_text(encoding="utf-8"), markup=False, highlight=False)
-        else:
-            _console.print("[red]ASCII artwork file not found.[/]")
-    except Exception as exc:
-        _console.print(f"[red]Error displaying ASCII art: {exc}[/]")
 
 
 # ---------------------------------------------------------------------------

@@ -12,8 +12,20 @@ logger = logging.getLogger(__name__)
 class AdaptiveScorer:
     """Computes dynamic score weights tuned by user preference history."""
 
-    def __init__(self, storage: Optional[StorageBackend] = None) -> None:
+    def __init__(
+        self,
+        storage: Optional[StorageBackend] = None,
+        profile_memory: Optional[Any] = None,
+    ) -> None:
         self.storage = storage or StorageBackend.get_instance()
+        self.profile_memory = profile_memory
+        if self.profile_memory is None:
+            try:
+                from archangel.memory.profile import UserProfileMemory
+                self.profile_memory = UserProfileMemory()
+            except Exception:
+                self.profile_memory = None
+
         self.default_weights = {
             "confidence": 0.35,
             "budget": 0.25,
@@ -43,7 +55,7 @@ class AdaptiveScorer:
         return weights
 
     def score_analysis(self, analysis: LeadAnalysis, raw_post_id: int = 0) -> LeadScore:
-        """Generates a LeadScore applying adaptive weights."""
+        """Generates a LeadScore applying adaptive weights and profile memory modifiers."""
         weights = self.get_user_weights()
 
         conf_score = analysis.confidence * 100.0
@@ -58,6 +70,16 @@ class AdaptiveScorer:
             + urgency_score * weights["urgency"]
             + keyword_score * weights["keyword"]
         ) / (total_weight if total_weight > 0 else 1.0)
+
+        # Apply UserProfileMemory modifier if available
+        if self.profile_memory:
+            prof_res = self.profile_memory.evaluate_lead(
+                tags=analysis.tags,
+                category=analysis.category,
+                content="",
+                estimated_budget=analysis.estimated_budget,
+            )
+            raw_score += prof_res.get("score_modifier", 0.0)
 
         final_score = round(min(max(raw_score, 0.0), 100.0), 2)
 
