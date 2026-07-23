@@ -2028,6 +2028,62 @@ def groupchat_cmd() -> None:
     run_groupchat_repl(_console)
 
 
+@cli.command("swarm")
+@click.option("--duration", default="3h", help="Duration to run swarm (e.g. 30s, 3h, continuous).")
+@click.option("--output", default="data/swarm_leads.log", help="Path to output stream log file.")
+@click.option("--targets", default="all", help="Target platforms, links, or 'all'.")
+@click.option("--workers", default=500, help="Max worker tasks in pool.")
+def swarm_cmd(duration: str, output: str, targets: str, workers: int) -> None:
+    """Launch 24/7 token-efficient agent swarm."""
+    import asyncio
+    from pathlib import Path
+    from archangel.agents.swarm.manager import SwarmManager
+
+    _console.print(f"[bold cyan]⚔ Summoning 24/7 Agent Swarm... (Duration: {duration}, Workers: {workers})[/]")
+    manager = SwarmManager(
+        duration=duration,
+        output_path=Path(output),
+        targets=targets,
+        max_workers=workers,
+    )
+    try:
+        asyncio.run(manager.run())
+    except (KeyboardInterrupt, SystemExit):
+        _console.print("\n[bold yellow]✔ Swarm safely stopped.[/bold yellow]")
+
+
+@cli.group("agent", invoke_without_command=True)
+@click.pass_context
+def agent_group(ctx: click.Context) -> None:
+    """Agent management and 24/7 agent swarm subsystem."""
+    if ctx.invoked_subcommand is None:
+        run_agents_hub_repl(_console)
+
+
+@agent_group.command("swarm")
+@click.option("--duration", default="3h", help="Duration to run swarm (e.g. 30s, 3h, continuous).")
+@click.option("--output", default="data/swarm_leads.log", help="Path to output stream log file.")
+@click.option("--targets", default="all", help="Target platforms, links, or 'all'.")
+@click.option("--workers", default=500, help="Max worker tasks in pool.")
+def agent_swarm_subcmd(duration: str, output: str, targets: str, workers: int) -> None:
+    """Launch 24/7 token-efficient agent swarm."""
+    import asyncio
+    from pathlib import Path
+    from archangel.agents.swarm.manager import SwarmManager
+
+    _console.print(f"[bold cyan]⚔ Summoning 24/7 Agent Swarm... (Duration: {duration}, Workers: {workers})[/]")
+    manager = SwarmManager(
+        duration=duration,
+        output_path=Path(output),
+        targets=targets,
+        max_workers=workers,
+    )
+    try:
+        asyncio.run(manager.run())
+    except (KeyboardInterrupt, SystemExit):
+        _console.print("\n[bold yellow]✔ Swarm safely stopped.[/bold yellow]")
+
+
 # ---------------------------------------------------------------------------
 # Entrypoint
 # ---------------------------------------------------------------------------

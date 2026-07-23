@@ -68,9 +68,11 @@ def auth_required(func):
 @auth_required
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Archangle Online.\n\n"
+        "⚔️ Archangel Online — Remote Operations Active\n\n"
         "Commands:\n"
-        "  status - System status\n"
+        "  status - System status & worker metrics\n"
+        "  archangel agent swarm - Launch agent swarm remotely\n"
+        "  exec <cmd> - Execute terminal / CLI command remotely\n"
         "  search <query> - Search the web\n"
         "  leads <query> [site:reddit|x] - Find leads from X, Reddit, or both\n"
         "  save - Save last leads to file\n"
@@ -80,15 +82,13 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  unwatch <url> - Stop monitoring\n"
         "  watches - List monitored URLs\n"
         "  clear - Clear chat history\n"
-        "  help - Show this message\n"
-        "\n"
+        "  help - Show this message\n\n"
         "Discord Integration:\n"
         "  discord servers - List your Discord servers\n"
         "  discord join <id> - Join a server\n"
         "  discord leave <id> - Leave a server\n"
-        "  discord monitor <id> - Monitor server for leads\n"
-        "\n"
-        "Or just type anything to chat with Archangel AI."
+        "  discord monitor <id> - Monitor server for leads\n\n"
+        "Or type any terminal command (e.g., 'archangel status', 'exec dir') or chat with Archangel AI."
     )
 
 
@@ -774,6 +774,85 @@ async def discord_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await status_msg.edit_text(f"❌ Error: {e}")
 
 
+# --- Remote Command Execution Handler ---
+
+@auth_required
+async def archangel_cmd_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Executes local Archangel CLI commands or shell commands remotely via Telegram."""
+    text = update.message.text.strip()
+    if text.startswith("/"):
+        text = text[1:]
+
+    lower = text.lower()
+    if lower.startswith("exec "):
+        cmd_str = text[5:].strip()
+    elif lower.startswith("cmd "):
+        cmd_str = text[4:].strip()
+    else:
+        cmd_str = text.strip()
+
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+
+    # Special handling for "archangel agent swarm" / "swarm"
+    if "swarm" in cmd_str.lower():
+        try:
+            import subprocess
+            import sys
+            msg = await update.message.reply_text(
+                "⚔️ *Summoning 24/7 Agent Swarm remotely...*\n"
+                "```\nTarget: all\nWorkers: 500 max\nDuration: 3h\nOutput: data/swarm_leads.log\n```",
+                parse_mode="Markdown"
+            )
+
+            # Spawn swarm process as background process on PC
+            proc = subprocess.Popen(
+                [sys.executable, "-m", "archangel.cli.main", "agent", "swarm", "--duration", "3h"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            await asyncio.sleep(2.5)
+            await msg.edit_text(
+                f"⚔️ *Archangel Agent Swarm active on host PC* (PID: `{proc.pid}`)\n\n"
+                f"```\nOutput Stream: data/swarm_leads.log\nMax Workers: 500\nDuration: 3h\nStatus: Running (Background)\n```\n"
+                f"Use `status` to monitor live health.",
+                parse_mode="Markdown"
+            )
+            return
+        except Exception as exc:
+            await update.message.reply_text(f"❌ Failed to launch swarm: {exc}")
+            return
+
+    # Generic CLI / Shell command execution
+    try:
+        import asyncio
+        import subprocess
+
+        def _run():
+            res = subprocess.run(
+                cmd_str,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            out = (res.stdout or "") + (res.stderr or "")
+            return out.strip() or "[Command completed with no output]"
+
+        output = await asyncio.to_thread(_run)
+
+        bridge = context.application.bot_data.get("bridge")
+        formatted = f"```\n$ {cmd_str}\n\n{output}\n```"
+
+        if bridge and hasattr(bridge, "_split_message"):
+            for part in bridge._split_message(formatted):
+                await update.message.reply_text(part, parse_mode="Markdown")
+        else:
+            await update.message.reply_text(formatted[:4000], parse_mode="Markdown")
+    except Exception as exc:
+        await update.message.reply_text(f"❌ Command execution failed: {exc}")
+
+
 # --- Smart Router ---
 
 @auth_required
@@ -817,6 +896,16 @@ async def smart_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await unwatch_handler(update, context)
     if lower == "watches":
         return await watches_handler(update, context)
+
+    # Remote terminal / Archangel command dispatch
+    if (
+        lower.startswith("archangel")
+        or lower.startswith("exec ")
+        or lower.startswith("cmd ")
+        or lower == "swarm"
+        or lower.startswith("swarm ")
+    ):
+        return await archangel_cmd_handler(update, context)
 
     # Discord commands (unified handler)
     if lower.startswith("discord"):

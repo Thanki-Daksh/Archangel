@@ -188,6 +188,49 @@ class StorageBackend:
                 logger.error("store_raw_post failed: %s", exc)
                 return 0
 
+    def store_raw_posts_batch(self, posts: list[RawPost]) -> list[int]:
+        """Insert multiple raw posts in a single transaction. Returns list of row IDs."""
+        if not posts:
+            return []
+        with self._write_lock:
+            cursor = self._conn.cursor()
+            ids: list[int] = []
+            try:
+                cursor.execute("BEGIN IMMEDIATE")
+                for post in posts:
+                    # Fallback URL if empty to ensure unique conflict resolution
+                    post_url = (post.url or "").strip()
+                    if not post_url:
+                        post_url = f"gen:{post.source}:{post.timestamp}:{hash(post.content or '')}"
+                    cursor.execute(
+                        """INSERT INTO raw_posts
+                           (source, channel, author, content, timestamp, url, metadata)
+                           VALUES (?, ?, ?, ?, ?, ?, ?)
+                           ON CONFLICT(url) DO UPDATE SET
+                           content=excluded.content
+                           RETURNING id""",
+                        (
+                            post.source or "",
+                            post.channel or "",
+                            post.author or "",
+                            post.content or "",
+                            post.timestamp or 0.0,
+                            post_url,
+                            json.dumps(post.metadata or {}),
+                        ),
+                    )
+                    row = cursor.fetchone()
+                    ids.append(row[0] if row else 0)
+                self._conn.commit()
+            except Exception as exc:
+                try:
+                    self._conn.rollback()
+                except Exception:
+                    pass
+                logger.error("store_raw_posts_batch failed (%d posts): %s", len(posts), exc)
+                ids = [0] * len(posts)
+            return ids
+
     def store_analysis(self, analysis: LeadAnalysis) -> int:
         with self._write_lock:
             cursor = self._conn.cursor()
