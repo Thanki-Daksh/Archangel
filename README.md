@@ -304,23 +304,69 @@ Produces
 
 ---
 
-## Outreach (Future)
+## Deduplication Engine
 
-After approval
+Two-tier hybrid deduplication (`archangel/deduplication/`).
+
+- **Tier 1 (Deterministic & Similarity Pre-Filter):** Fast Jaccard + SequenceMatcher similarity scoring & exact key matching.
+- **Tier 2 (LLM Verification):** Uses LLM verification for borderline 0.50–0.88 similarity matches.
+- Links cross-posted leads to canonical profiles in `lead_sources` SQLite table.
+
+---
+
+## Auto-Enrichment Engine
+
+Scrapes lead context (`archangel/enrichment/`).
+
+- Extracts company domains, company names, tech stack signatures (Python, React, Rust, Go, AWS, Docker, PostgreSQL), and social profiles (GitHub, Twitter, LinkedIn).
+- Persists data in `lead_enrichments` SQLite table.
+
+---
+
+## Lead Lifecycle State Machine
+
+Pipeline state tracker (`archangel/lifecycle/`).
+
+- Manages progression: `discovered` → `analyzed` → `contacted` → `responded` → `negotiating` → `won` / `lost` → `paid` → `archived`.
+- Validates state transitions and logs progression history in `lead_lifecycle` SQLite table.
+
+---
+
+## Predictive Scoring with Feedback Loop
+
+Adaptive ML weight tuning (`archangel/scoring/learning.py`).
+
+- Listens to `user.feedback` events (`like`, `ignore`, `converted`) to dynamically adjust lead scoring multipliers to user preferences over time.
+
+---
+
+## Outreach Intelligence
+
+Pitch generator (`archangel/outreach/`).
+
+- Generates platform-tuned outreach pitch drafts for Email, Discord, Telegram, and LinkedIn based on lead context and tech stack.
+
+---
+
+## Obsidian Knowledge Vault & Graph
+
+Obsidian-compatible Second Brain engine (`archangel/vault/`).
+
+- Generates `.md` lead notes with YAML frontmatter, bi-directional wikilinks (`[[Company:X]]`, `[[Tech:Y]]`), embedded Dataview query blocks, and `.canvas` visual pipeline graphs.
+
+---
+
+## Outreach (Implemented)
+
+After approval:
 
 ```
 Lead
-
-↓
-
-Generate proposal
-
-↓
-
-Wait for approval
-
-↓
-
+  ↓
+Generate Pitch Draft (Email / Discord / Telegram / LinkedIn)
+  ↓
+Wait for user approval
+  ↓
 Send
 ```
 
