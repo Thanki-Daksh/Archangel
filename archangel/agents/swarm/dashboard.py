@@ -23,6 +23,7 @@ def render_swarm_dashboard(
     max_workers: int,
     output_path: str,
     metrics: Optional[StorageMetrics] = None,
+    budget_str: Optional[str] = None,
 ) -> Panel:
     """Generates a styled Rich Panel displaying live swarm metrics."""
     dur_str = format_seconds(duration_seconds) if duration_seconds > 0 else "24/7 Continuous"
@@ -32,9 +33,17 @@ def render_swarm_dashboard(
     table.add_column(style="bold cyan")
     table.add_column(style="green")
 
+    if budget_str:
+        from archangel.agents.swarm.filter import parse_budget_amount
+        amt = parse_budget_amount(budget_str)
+        budget_display = f"${amt:,.0f}+" if amt else f"{budget_str}+"
+    else:
+        budget_display = "Unfiltered / All"
+
     table.add_row("Active Workers:", f"{active_workers} / {max_workers}")
     table.add_row("Runtime Elapsed:", f"{elap_str} (Target: {dur_str})")
     table.add_row("Output Stream:", f"{output_path}")
+    table.add_row("Min Budget Filter:", f"[bold yellow]{budget_display}[/bold yellow]")
     table.add_row("Token Cost:", "$0.00 (100% Token-Free Regex Engine)")
     table.add_row("Posts Scanned (This Run):", f"{scanned_count:,}")
     table.add_row("Qualified Leads (This Run):", f"[bold green]{qualified_count:,}[/bold green]")

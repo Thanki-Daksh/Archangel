@@ -28,6 +28,7 @@ def build_swarm_monitor_ascii_table(
     writes_failed: int = 0,
     persisted_count: int = 0,
     backpressure_warnings: int = 0,
+    min_budget: str = "Unfiltered / All",
 ) -> str:
     """Renders the exact Archangel Swarm Monitor table as a formatted ASCII box for Telegram."""
     box = (
@@ -37,6 +38,7 @@ def build_swarm_monitor_ascii_table(
         f"│ Active Workers:        {active_workers:<5} / {max_workers:<23}│\n"
         f"│ Runtime Elapsed:       {elapsed_str} (Target: {target_str:<12})│\n"
         f"│ Output Stream:         {output_path:<32}│\n"
+        f"│ Min Budget Filter:     {min_budget:<32}│\n"
         f"│ Token Cost:            {token_cost:<32}│\n"
         f"│ Posts Scanned:         {scanned_count:<32,}│\n"
         f"│ Qualified Leads:       {qualified_count:<32,}│\n"

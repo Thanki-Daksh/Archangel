@@ -49,7 +49,7 @@ class SwarmManager:
         targets: str = "all",
         max_workers: int = 1000,
         leads_query: Optional[str] = None,
-        reset_log: bool = True,
+        reset_log: bool = False,
         fresh: Optional[str] = None,
         write_interval: Optional[str] = None,
         telegram: bool = False,
@@ -167,6 +167,7 @@ class SwarmManager:
                     max_workers=max(1000, self.max_workers),
                     output_path=str(self.output_path),
                     metrics=self.pipeline.get_metrics(),
+                    budget_str=self.budget_str,
                 ),
                 refresh_per_second=2,
             ) as live:
@@ -184,6 +185,7 @@ class SwarmManager:
                             max_workers=max(1000, self.max_workers),
                             output_path=str(self.output_path),
                             metrics=self.pipeline.get_metrics(),
+                            budget_str=self.budget_str,
                         )
                     )
 
@@ -206,6 +208,7 @@ class SwarmManager:
                             writes_failed=m.failed_writes,
                             persisted_count=m.total_flushed,
                             backpressure_warnings=m.backpressure_warnings,
+                            min_budget=f"${self.budget_str}+" if self.budget_str else "Unfiltered / All",
                         )
                         hdr = f"⚔️ *Archangel 24/7 Agent Swarm Live (Workers: {len(self.pool.workers)})*"
                         if self.leads_query:

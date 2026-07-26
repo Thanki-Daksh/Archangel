@@ -98,6 +98,23 @@ def format_lead_block(
     arr_range = revenue_data.get("estimated_arr_range", "Unspecified")
     budget_tier = revenue_data.get("budget_level", "Medium")
 
+    extracted_budget = (lead.evaluation or {}).get("extracted_budget")
+    if extracted_budget is None:
+        from archangel.agents.swarm.filter import extract_post_budget
+        full_text = getattr(post, "content", "") or ""
+        extracted_budget = extract_post_budget(full_text)
+
+    if extracted_budget and extracted_budget > 0:
+        budget_display = f"${extracted_budget:,.0f} USD"
+    else:
+        budget_display = "Unbudgeted / Flexible"
+
+    min_budget = (lead.evaluation or {}).get("min_budget")
+    if min_budget and min_budget > 0:
+        filter_budget_display = f"${min_budget:,.0f}+"
+    else:
+        filter_budget_display = "Unfiltered / All"
+
     competition_data = lead.competition or {}
     outreach_diff = competition_data.get("difficulty_level", "Medium")
 
@@ -153,6 +170,8 @@ Identified Pain Categories: {pains_str}
 Recommended Services: {opps_str}
 
 [10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: {budget_display}
+Target Budget Filter: {filter_budget_display}
 Estimated ARR Range: {arr_range}
 Buying Power Tier: {budget_tier}
 

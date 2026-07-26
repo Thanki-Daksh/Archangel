@@ -470,8 +470,11 @@ def cmd_leads(console: Console, query: str | None = None, limit: int = 10) -> bo
             url = l.get("url") or "N/A"
             author = l.get("author") or "unknown"
             source = l.get("source") or "web"
+            from archangel.agents.swarm.filter import extract_post_budget
+            post_budget = extract_post_budget(l.get("content") or "")
+            budget_str = f" | 💰 Budget: [bold yellow]${post_budget:,.0f}[/bold yellow]" if post_budget else ""
 
-            console.print(f"[bold green]{idx}. {title}[/bold green] [dim](Score: {score:.0f})[/dim]")
+            console.print(f"[bold green]{idx}. {title}[/bold green] [dim](Score: {score:.0f})[/dim]{budget_str}")
             console.print(f"   🔗 [bold blue underline]{url}[/bold blue underline]")
             console.print(f"   👤 Author: {author} | Source: {source}")
             console.print()

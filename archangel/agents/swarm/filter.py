@@ -95,11 +95,16 @@ def extract_post_budget(text: str) -> Optional[float]:
     found_amounts: List[float] = []
     for pat in patterns:
         for match in re.finditer(pat, text, re.IGNORECASE):
+            matched_str = match.group(0).lower()
+            # Skip 401(k) or 401k retirement plan references
+            if "401" in matched_str and "k" in matched_str:
+                continue
+
             raw_num = match.group(1).replace(",", "")
             is_k = bool(match.group(2)) if len(match.groups()) >= 2 else False
             try:
                 val = float(raw_num)
-                if is_k or "k" in match.group(0).lower():
+                if is_k or "k" in matched_str:
                     val *= 1000.0
                 if val >= 10:
                     found_amounts.append(val)
@@ -278,5 +283,6 @@ class TokenFreeFilter:
             "matched_keywords": sorted(list(matched_keywords)),
             "intent_signals": intent_matches,
             "extracted_budget": extracted_budget,
+            "min_budget": self.min_budget,
             "is_excluded": False,
         }
