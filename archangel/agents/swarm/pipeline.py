@@ -7,6 +7,7 @@ Architecture:
 import asyncio
 import logging
 import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
@@ -16,8 +17,11 @@ from archangel.agents.swarm.logger import SwarmFileWriter, format_lead_block
 from archangel.events import EventBus
 from archangel.models import RawPost
 from archangel.storage import StorageBackend
+from archangel.enrichment.agent import EnrichmentAgent
 
 logger = logging.getLogger(__name__)
+
+MAX_SEEN_URLS = 100_000
 
 
 # ---------------------------------------------------------------------------
@@ -55,12 +59,14 @@ class LeadProcessor:
         storage_queue: asyncio.Queue,
         filter_engine: TokenFreeFilter,
         event_bus: Optional[EventBus] = None,
+        max_seen_urls: int = MAX_SEEN_URLS,
     ) -> None:
         self.discovery_queue = discovery_queue
         self.storage_queue = storage_queue
         self.filter_engine = filter_engine
         self.event_bus = event_bus or EventBus.get_instance()
-        self._seen_urls: Set[str] = set()
+        self._seen_urls: OrderedDict[str, None] = OrderedDict()
+        self._max_seen_urls = max_seen_urls
         self._running = False
         self._task: Optional[asyncio.Task] = None
         self.processed_count = 0
@@ -105,17 +111,19 @@ class LeadProcessor:
                 self.discovery_queue.task_done()
 
     async def _process_post(self, post: RawPost) -> None:
-        # Fast-path URL dedup
+        # Fast-path URL dedup with LRU eviction
         url_key = (post.url or "").strip()
-        if url_key and url_key in self._seen_urls:
-            self.deduped_count += 1
-            return
         if url_key:
-            self._seen_urls.add(url_key)
+            if url_key in self._seen_urls:
+                self.deduped_count += 1
+                return
+            self._seen_urls[url_key] = None
+            if len(self._seen_urls) > self._max_seen_urls:
+                self._seen_urls.popitem(last=False)
 
         # Filter evaluation (CPU-only, 0 tokens)
         evaluation = self.filter_engine.evaluate(
-            content=post.content, source=post.source
+            content=post.content, source=post.source, timestamp=post.timestamp
         )
 
         if not evaluation.get("is_lead"):
@@ -123,14 +131,8 @@ class LeadProcessor:
 
         self.qualified_count += 1
 
-        # Forward to storage queue (non-blocking with backpressure)
-        try:
-            self.storage_queue.put_nowait((post, evaluation))
-        except asyncio.QueueFull:
-            logger.warning(
-                "Storage queue full (%d). Dropping lead from %s.",
-                self.storage_queue.qsize(), post.source,
-            )
+        # Forward to storage queue with async backpressure (never drop qualified leads)
+        await self.storage_queue.put((post, evaluation))
 
         # Publish discovery event (no storage inside this)
         self.event_bus.publish_async("swarm.lead_discovered", {
@@ -145,8 +147,8 @@ class LeadProcessor:
 class BatchWriter:
     """Async consumer that batches leads and flushes to SQLite + file periodically."""
 
-    BATCH_SIZE = 20
-    FLUSH_INTERVAL_SECONDS = 1.0
+    BATCH_SIZE = 1
+    FLUSH_INTERVAL_SECONDS = 0.05
     MAX_RETRIES = 3
 
     def __init__(
@@ -155,10 +157,15 @@ class BatchWriter:
         storage: StorageBackend,
         output_path: Path,
         event_bus: Optional[EventBus] = None,
+        flush_interval: float = 0.05,
+        enrichment_queue: Optional[asyncio.Queue] = None,
     ) -> None:
         self.storage_queue = storage_queue
         self.storage = storage
         self.output_path = output_path
+        self.event_bus = event_bus
+        self.flush_interval_seconds = flush_interval
+        self.enrichment_queue = enrichment_queue
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
         self.event_bus = event_bus or EventBus.get_instance()
         self.file_writer = SwarmFileWriter(output_path)
@@ -182,8 +189,7 @@ class BatchWriter:
         self._running = True
         self._last_flush_time = time.monotonic()
         self._task = asyncio.create_task(self._consume_loop())
-        logger.info("BatchWriter started. Batch size: %d | Flush interval: %.1fs",
-                     self.BATCH_SIZE, self.FLUSH_INTERVAL_SECONDS)
+        logger.info("BatchWriter started with ultra-fast instant flush mode.")
 
     async def stop(self) -> None:
         """Graceful shutdown: drain queue, flush remaining batch, close files."""
@@ -219,13 +225,13 @@ class BatchWriter:
         while self._running:
             try:
                 item = await asyncio.wait_for(
-                    self.storage_queue.get(), timeout=0.2
+                    self.storage_queue.get(), timeout=0.05
                 )
                 self._batch.append(item)
                 self.storage_queue.task_done()
 
-                # Rapid burst-drain up to BATCH_SIZE
-                while len(self._batch) < self.BATCH_SIZE and not self.storage_queue.empty():
+                # Burst-drain all pending items currently available in queue
+                while not self.storage_queue.empty() and len(self._batch) < 200:
                     try:
                         b_item = self.storage_queue.get_nowait()
                         self._batch.append(b_item)
@@ -237,16 +243,13 @@ class BatchWriter:
             except asyncio.CancelledError:
                 break
 
-            # Check flush conditions
+            # Flush batch when flush_interval_seconds elapsed or instant mode active
             elapsed = time.monotonic() - self._last_flush_time
-            if (
-                len(self._batch) >= self.BATCH_SIZE
-                or (self._batch and elapsed >= self.FLUSH_INTERVAL_SECONDS)
-            ):
+            if self._batch and (self.flush_interval_seconds <= 0.1 or elapsed >= self.flush_interval_seconds):
                 await self._flush_batch()
 
     async def _flush_batch(self) -> None:
-        """Flush the accumulated batch to SQLite + file with retry logic."""
+        """Flush the accumulated batch to file and SQLite immediately."""
         if not self._batch:
             return
 
@@ -258,62 +261,53 @@ class BatchWriter:
         evaluations = [item[1] for item in batch]
 
         flush_start = time.monotonic()
-        backoff = 1.0
 
-        for attempt in range(1, self.MAX_RETRIES + 1):
-            try:
-                # SQLite batch insert (single transaction)
-                row_ids = await asyncio.get_event_loop().run_in_executor(
-                    None, self.storage.store_raw_posts_batch, posts
-                )
+        # 1. Write formatted leads to file IMMEDIATELY (unbuffered instant flush)
+        try:
+            blocks: List[str] = [
+                format_lead_block(post, eval_dict, i + 1)
+                for i, (post, eval_dict) in enumerate(batch, start=self.total_flushed + 1)
+            ]
+            self.file_writer.write_batch(blocks)
+        except Exception as file_exc:
+            logger.error("File write batch failed: %s", file_exc)
 
-                # File batch write (single flush)
-                blocks: List[str] = []
-                for i, (post, evaluation) in enumerate(batch):
-                    rid = row_ids[i] if i < len(row_ids) else 0
-                    blocks.append(format_lead_block(post, evaluation, rid))
+        # 2. Persist to SQLite in background executor
+        try:
+            row_ids = await asyncio.get_event_loop().run_in_executor(
+                None, self.storage.store_raw_posts_batch, posts
+            )
+        except Exception as db_exc:
+            logger.warning("SQLite storage write non-fatal delay: %s", db_exc)
+            row_ids = [0] * batch_size
 
-                await asyncio.get_event_loop().run_in_executor(
-                    None, self.file_writer.write_batch, blocks
-                )
+        # Publish batch event
+        self.event_bus.publish_async("swarm.batch_flushed", {
+            "count": batch_size,
+            "row_ids": row_ids,
+        })
+        
+        # Enqueue for async enrichment
+        if self.enrichment_queue:
+            for post, r_id in zip(posts, row_ids):
+                if r_id > 0:
+                    try:
+                        self.enrichment_queue.put_nowait((post, r_id))
+                    except asyncio.QueueFull:
+                        logger.warning("Enrichment queue full. Dropping post %d from enrichment.", r_id)
 
-                # Publish batch event
-                self.event_bus.publish_async("swarm.batch_flushed", {
-                    "count": batch_size,
-                    "row_ids": row_ids,
-                })
-
-                # Update metrics
-                flush_duration_ms = (time.monotonic() - flush_start) * 1000
-                self.total_flushed += batch_size
-                self.successful_writes += 1
-                self._flush_count += 1
-                self._total_batch_sizes += batch_size
-                self._total_flush_duration_ms += flush_duration_ms
-                self._last_flush_time = time.monotonic()
-
-                logger.debug(
-                    "Flushed batch of %d leads in %.1fms",
-                    batch_size, flush_duration_ms,
-                )
-                return  # Success
-
-            except Exception as exc:
-                logger.error(
-                    "BatchWriter flush attempt %d/%d failed: %s",
-                    attempt, self.MAX_RETRIES, exc,
-                )
-                if attempt < self.MAX_RETRIES:
-                    await asyncio.sleep(backoff)
-                    backoff = min(backoff * 2.0, 30.0)
-
-        # All retries exhausted
-        self.total_failed += batch_size
-        self.failed_writes += 1
+        # Update metrics
+        flush_duration_ms = (time.monotonic() - flush_start) * 1000
+        self.total_flushed += batch_size
+        self.successful_writes += 1
+        self._flush_count += 1
+        self._total_batch_sizes += batch_size
+        self._total_flush_duration_ms += flush_duration_ms
         self._last_flush_time = time.monotonic()
-        logger.critical(
-            "BatchWriter DROPPED %d leads after %d retries.",
-            batch_size, self.MAX_RETRIES,
+
+        logger.debug(
+            "Flushed batch of %d leads in %.1fms",
+            batch_size, flush_duration_ms,
         )
 
     @property
@@ -323,6 +317,59 @@ class BatchWriter:
     @property
     def avg_flush_duration_ms(self) -> float:
         return self._total_flush_duration_ms / self._flush_count if self._flush_count else 0.0
+
+
+# ---------------------------------------------------------------------------
+# EnrichmentProcessor — consumes stored posts and runs heavy async enrichment
+# ---------------------------------------------------------------------------
+
+class EnrichmentProcessor:
+    """Async consumer that runs deep intelligence extraction off the main loop."""
+
+    def __init__(self, enrichment_queue: asyncio.Queue):
+        self.enrichment_queue = enrichment_queue
+        self.agent = EnrichmentAgent()
+        # Unsubscribe the agent from the raw_post.stored event so it doesn't run twice
+        self.agent.event_bus.unsubscribe("raw_post.stored", self.agent._on_raw_post_stored)
+        self._running = False
+        self._task: Optional[asyncio.Task] = None
+        self.processed_count = 0
+
+    async def start(self) -> None:
+        self._running = True
+        self._task = asyncio.create_task(self._consume_loop())
+        logger.info("EnrichmentProcessor started.")
+
+    async def stop(self) -> None:
+        self._running = False
+        if self._task and not self._task.done():
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+        logger.info("EnrichmentProcessor stopped. Processed: %d", self.processed_count)
+
+    async def _consume_loop(self) -> None:
+        loop = asyncio.get_event_loop()
+        while self._running:
+            try:
+                post, row_id = await asyncio.wait_for(
+                    self.enrichment_queue.get(), timeout=1.0
+                )
+            except asyncio.TimeoutError:
+                continue
+            except asyncio.CancelledError:
+                break
+
+            try:
+                # Execute heavy enrichment in thread pool
+                await loop.run_in_executor(None, self.agent._process_enrichment, post, row_id)
+                self.processed_count += 1
+            except Exception as e:
+                logger.error("EnrichmentProcessor failed for lead %s: %s", row_id, e)
+            finally:
+                self.enrichment_queue.task_done()
 
 
 # ---------------------------------------------------------------------------
@@ -342,6 +389,7 @@ class StoragePipeline:
         event_bus: Optional[EventBus] = None,
         discovery_queue_size: int = 5000,
         storage_queue_size: int = 2000,
+        flush_interval: float = 0.05,
     ) -> None:
         self.filter_engine = filter_engine or TokenFreeFilter()
         self.storage = storage or StorageBackend.get_instance()
@@ -350,6 +398,8 @@ class StoragePipeline:
 
         self.discovery_queue: asyncio.Queue = asyncio.Queue(maxsize=discovery_queue_size)
         self.storage_queue: asyncio.Queue = asyncio.Queue(maxsize=storage_queue_size)
+        self.enrichment_queue: asyncio.Queue = asyncio.Queue(maxsize=storage_queue_size * 2)
+        
         self._discovery_capacity = discovery_queue_size
         self._storage_capacity = storage_queue_size
 
@@ -364,6 +414,11 @@ class StoragePipeline:
             storage=self.storage,
             output_path=self.output_path,
             event_bus=self.event_bus,
+            flush_interval=flush_interval,
+            enrichment_queue=self.enrichment_queue,
+        )
+        self.enricher = EnrichmentProcessor(
+            enrichment_queue=self.enrichment_queue,
         )
         self._backpressure_warnings = 0
 
@@ -371,12 +426,14 @@ class StoragePipeline:
         """Start both async consumers."""
         await self.processor.start()
         await self.writer.start()
+        await self.enricher.start()
         logger.info("StoragePipeline started.")
 
     async def stop(self) -> None:
         """Graceful shutdown: stop processor first (no new leads), then drain writer."""
         await self.processor.stop()
         await self.writer.stop()
+        await self.enricher.stop()
         logger.info("StoragePipeline stopped.")
 
     async def submit(self, post: RawPost) -> None:

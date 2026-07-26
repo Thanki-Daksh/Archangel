@@ -7,7 +7,7 @@ import logging
 import sqlite3
 import threading
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 
 from archangel.models import LeadAnalysis, LeadScore, RawPost
 
@@ -22,7 +22,9 @@ class StorageBackend:
     _instance: Optional["StorageBackend"] = None
     _lock = threading.Lock()
 
-    def __init__(self, db_path: Optional[Path] = None) -> None:
+    def __init__(self, db_path: Optional[Union[str, Path]] = None) -> None:
+        if isinstance(db_path, str):
+            db_path = Path(db_path)
         target_dir = db_path.parent if db_path else DATA_DIR
         target_dir.mkdir(parents=True, exist_ok=True)
         self.db_file = db_path or (DATA_DIR / "archangel.db")
@@ -283,12 +285,13 @@ class StorageBackend:
                 logger.error("store_score failed: %s", exc)
                 return 0
 
-    def get_leads(self, limit: int = 50) -> List[dict[str, Any]]:
+    def get_leads(self, limit: int = 50, leads_only: bool = False) -> list[dict[str, Any]]:
         with self._write_lock:
             cursor = self._conn.cursor()
             try:
+                where_clause = "WHERE a.is_lead = 1" if leads_only else ""
                 cursor.execute(
-                    """SELECT
+                    f"""SELECT
                         r.id, r.source, r.channel, r.author, r.content,
                         r.timestamp, r.url, r.created_at as post_created_at,
                         a.is_lead, a.confidence, a.estimated_budget,
@@ -299,6 +302,7 @@ class StorageBackend:
                        FROM raw_posts r
                        LEFT JOIN lead_analyses a ON r.id = a.raw_post_id
                        LEFT JOIN lead_scores s ON a.id = s.analysis_id
+                       {where_clause}
                        ORDER BY s.score DESC NULLS LAST, r.created_at DESC
                        LIMIT ?""",
                     (limit,),

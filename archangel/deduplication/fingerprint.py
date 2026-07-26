@@ -1,7 +1,9 @@
 """Fingerprinting, feature extraction, and similarity calculation for lead deduplication."""
 
+import math
 import hashlib
 import re
+from collections import Counter
 from difflib import SequenceMatcher
 from typing import Dict, Set
 
@@ -41,8 +43,28 @@ def extract_post_keys(post: RawPost) -> Dict[str, Set[str]]:
     }
 
 
+def compute_vector_similarity(text1: str, text2: str) -> float:
+    """Computes TF-IDF bag-of-words Cosine Similarity ratio [0.0, 1.0]."""
+    tokens1 = text1.split()
+    tokens2 = text2.split()
+    if not tokens1 or not tokens2:
+        return 0.0
+
+    vec1 = Counter(tokens1)
+    vec2 = Counter(tokens2)
+
+    intersection = set(vec1.keys()) & set(vec2.keys())
+    numerator = sum(vec1[x] * vec2[x] for x in intersection)
+
+    sum1 = sum(v ** 2 for v in vec1.values())
+    sum2 = sum(v ** 2 for v in vec2.values())
+    denominator = math.sqrt(sum1) * math.sqrt(sum2)
+
+    return numerator / denominator if denominator else 0.0
+
+
 def compute_post_similarity(post1: RawPost, post2: RawPost) -> float:
-    """Compute combined Jaccard & Sequence similarity ratio [0.0, 1.0] between two posts."""
+    """Compute combined Jaccard, Sequence, and Vector Cosine similarity ratio [0.0, 1.0]."""
     keys1 = extract_post_keys(post1)
     keys2 = extract_post_keys(post2)
 
@@ -70,5 +92,8 @@ def compute_post_similarity(post1: RawPost, post2: RawPost) -> float:
     union = tokens1 | tokens2
     jaccard_sim = len(tokens1 & tokens2) / len(union) if union else 0.0
 
-    # Weighted combination
-    return round(0.6 * seq_sim + 0.4 * jaccard_sim, 4)
+    # Vector Cosine similarity
+    vec_sim = compute_vector_similarity(t1, t2)
+
+    # Weighted hybrid combination: 40% sequence, 30% Jaccard, 30% Vector Cosine
+    return round(0.4 * seq_sim + 0.3 * jaccard_sim + 0.3 * vec_sim, 4)

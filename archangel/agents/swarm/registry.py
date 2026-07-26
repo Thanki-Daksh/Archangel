@@ -53,7 +53,11 @@ DEFAULT_X_QUERIES = [
 class PlatformRegistry:
     """Resolves short platform names or full URLs into structured SwarmTarget lists."""
 
-    def resolve_targets(self, targets_input: str | List[str]) -> List[SwarmTarget]:
+    def resolve_targets(
+        self,
+        targets_input: str | List[str],
+        leads_query: str | None = None,
+    ) -> List[SwarmTarget]:
         """Resolves target strings into SwarmTarget objects."""
         if isinstance(targets_input, str):
             raw_list = [t.strip() for t in targets_input.split(",") if t.strip()]
@@ -61,6 +65,24 @@ class PlatformRegistry:
             raw_list = targets_input
 
         resolved: List[SwarmTarget] = []
+
+        # If leads_query specified, inject targeted search streams first
+        if leads_query and leads_query.strip():
+            q_clean = "+".join(leads_query.strip().split())
+            logger.info("Injecting target-specific streams for leads query: '%s'", leads_query)
+            
+            # Reddit search streams for query
+            for sub in ["all", "forhire", "freelance_forhire", "webdev", "pythonjobs", "jobbit", "jobs"]:
+                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/search/.json?q={q_clean}&sort=new&limit=100", "reddit", 2))
+                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/search/.json?q=hiring+{q_clean}&sort=new&limit=100", "reddit", 2))
+
+            # X / Twitter search streams for query
+            resolved.append(SwarmTarget("x", f"agent-reach:x:{q_clean}", "reach", 2))
+            resolved.append(SwarmTarget("x", f"agent-reach:x:hiring+{q_clean}", "reach", 2))
+            resolved.append(SwarmTarget("x", f"agent-reach:x:looking+for+{q_clean}", "reach", 2))
+
+            # GitHub issue search for query
+            resolved.append(SwarmTarget("github", f"https://api.github.com/search/issues?q={q_clean}+state:open&per_page=100", "reach", 3))
 
         # If default or "all", expand into 170+ parallel streams
         if not raw_list or "all" in [x.lower() for x in raw_list]:

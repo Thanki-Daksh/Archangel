@@ -61,11 +61,15 @@ class ScraplingScraper:
     def __init__(self):
         self._init_failed = False
         try:
-            from scrapling.fetchers import Fetcher
+            from scrapling import Fetcher
             self._fetcher_cls = Fetcher
         except ImportError:
-            logger.warning("Scrapling not installed — falling back to Obscura only")
-            self._init_failed = True
+            try:
+                from scrapling.fetchers import Fetcher
+                self._fetcher_cls = Fetcher
+            except ImportError:
+                logger.warning("Scrapling not installed — falling back to Obscura only")
+                self._init_failed = True
 
     def fetch_text(self, url, timeout=30):
         if self._init_failed:
@@ -558,30 +562,8 @@ class SmartScraper:
             return 0
 
     def _get_reddit_post_timestamp(self, reddit_url: str) -> float:
-        """Fetch the created_utc of a Reddit post via its .json endpoint.
-        Falls back to sequential base36 ID estimation when API returns 403."""
-        import requests as req_lib
-
-        try:
-            # Normalize URL and append .json
-            clean = reddit_url.rstrip("/")
-            if not clean.endswith(".json"):
-                clean += ".json"
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
-            }
-            resp = req_lib.get(clean, headers=headers, timeout=10)
-            if resp.status_code != 200:
-                return self._estimate_reddit_timestamp_from_id(reddit_url)
-            data = resp.json()
-            # Reddit post JSON is a list: [listing, comments]
-            if isinstance(data, list) and len(data) > 0:
-                children = data[0].get("data", {}).get("children", [])
-                if children:
-                    return children[0].get("data", {}).get("created_utc", 0)
-            return self._estimate_reddit_timestamp_from_id(reddit_url)
-        except Exception:
-            return self._estimate_reddit_timestamp_from_id(reddit_url)
+        """Instantly estimate created_utc from post base36 ID without blocking HTTP requests."""
+        return self._estimate_reddit_timestamp_from_id(reddit_url)
 
     def search_reddit_old_html(self, query: str, max_results: int = 10, freshness_days: int = 7, max_comments: int | None = None, message_filter: str | None = None) -> list[dict]:
         """Search old.reddit.com HTML directly — bypasses Cloudflare 403 blocks and gets 100% real, fresh posts."""

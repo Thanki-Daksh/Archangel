@@ -13,17 +13,18 @@ PID_FILE = Path("data") / ".telegram_bridge_pid"
 
 
 def _is_process_alive(pid: int) -> bool:
-    """Check if a process with given PID is alive on the system."""
+    """Check if a process with given PID is alive on the system and is a Python process."""
     if pid <= 0:
         return False
     if os.name == "nt":
         try:
             res = subprocess.run(
                 ["powershell", "-NoProfile", "-Command",
-                 f"Get-Process -Id {pid} -ErrorAction SilentlyContinue"],
+                 f"(Get-Process -Id {pid} -ErrorAction SilentlyContinue).ProcessName"],
                 capture_output=True, text=True, timeout=3
             )
-            return bool(res.stdout.strip())
+            proc_name = res.stdout.strip().lower()
+            return bool(proc_name and "python" in proc_name)
         except Exception:
             return False
     else:
@@ -68,6 +69,10 @@ class TelegramBridge:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
+
+    @property
+    def is_running(self) -> bool:
+        return bool(self._thread and self._thread.is_alive())
 
     def start(self) -> tuple[bool, str]:
         """Start the Telegram bridge.

@@ -20,6 +20,19 @@ def test_parse_duration_seconds():
     assert parse_duration_seconds("continuous") == 0
 
 
+def test_parse_fresh_range():
+    from archangel.agents.swarm.filter import parse_fresh_range
+    assert parse_fresh_range("3d") == (0.0, 3 * 86400.0)
+    assert parse_fresh_range("3 days") == (0.0, 3 * 86400.0)
+    assert parse_fresh_range("1-10d") == (1 * 86400.0, 10 * 86400.0)
+    assert parse_fresh_range("1-10 days") == (1 * 86400.0, 10 * 86400.0)
+    assert parse_fresh_range("2w") == (0.0, 2 * 604800.0)
+    assert parse_fresh_range("1-4 weeks") == (1 * 604800.0, 4 * 604800.0)
+    assert parse_fresh_range("1y") == (0.0, 31536000.0)
+    assert parse_fresh_range("1-2y") == (31536000.0, 2 * 31536000.0)
+    assert parse_fresh_range("1-2 years") == (31536000.0, 2 * 31536000.0)
+
+
 def test_token_free_filter(tmp_path: Path):
     you_txt = tmp_path / "you.txt"
     you_txt.write_text(

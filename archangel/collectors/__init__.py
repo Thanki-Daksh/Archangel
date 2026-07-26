@@ -16,7 +16,31 @@ class CollectorAgent:
         self.scraper = SmartScraper()
         logger.debug("CollectorAgent created")
 
+    def get_enabled_sources_count(self) -> int:
+        from archangel.config.manager import load_config
+        cfg = load_config()
+        raw_sources = cfg.get("sources", [])
+        sources = raw_sources if isinstance(raw_sources, list) else (raw_sources.get("sources", []) if isinstance(raw_sources, dict) else [])
+        return sum(1 for s in sources if isinstance(s, dict) and s.get("enabled", False))
+
+    def _collect_single_source(self, source: dict) -> list[RawPost]:
+        if not isinstance(source, dict) or not source.get("enabled", False):
+            return []
+        try:
+            source_type = source.get("type", "")
+            if source_type == "reddit":
+                return self._collect_reddit(source)
+            elif source_type == "x":
+                return self._collect_x(source)
+            else:
+                logger.debug("Unknown source type: %s", source_type)
+                return []
+        except Exception as exc:
+            logger.error("Collector failed for %s: %s", source.get("id", "?"), exc)
+            return []
+
     def collect_all(self) -> list[RawPost]:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         from archangel.config.manager import load_config
         cfg = load_config()
         raw_sources = cfg.get("sources", [])
@@ -27,26 +51,21 @@ class CollectorAgent:
         else:
             sources = []
 
-        if not sources:
-            logger.warning("No sources configured in sources.yaml")
+        active_sources = [s for s in sources if isinstance(s, dict) and s.get("enabled", False)]
+        if not active_sources:
+            logger.warning("No enabled sources configured in sources.yaml")
             return []
 
         posts = []
-        for source in sources:
-            if not isinstance(source, dict):
-                continue
-            if not source.get("enabled", False):
-                continue
-            try:
-                source_type = source.get("type", "")
-                if source_type == "reddit":
-                    posts.extend(self._collect_reddit(source))
-                elif source_type == "x":
-                    posts.extend(self._collect_x(source))
-                else:
-                    logger.debug("Unknown source type: %s", source_type)
-            except Exception as exc:
-                logger.error("Collector failed for %s: %s", source.get("id", "?"), exc)
+        with ThreadPoolExecutor(max_workers=min(8, len(active_sources)), thread_name_prefix="collector-worker") as executor:
+            future_to_source = {executor.submit(self._collect_single_source, s): s for s in active_sources}
+            for future in as_completed(future_to_source):
+                try:
+                    res = future.result()
+                    if res:
+                        posts.extend(res)
+                except Exception as exc:
+                    logger.error("Source collector task failed: %s", exc)
 
         logger.info("CollectorAgent collected %d raw posts", len(posts))
         return posts
@@ -54,8 +73,10 @@ class CollectorAgent:
     def _collect_reddit(self, source: dict) -> list[RawPost]:
         subreddits = source.get("subreddits", [])
         query = source.get("query", "help needed")
-        posts_data = self.scraper.search_reddit_json(
-            query, subreddits=subreddits, max_results=source.get("max_results", 10)
+        posts_data = self.scraper.search_reddit(
+            query,
+            max_results=source.get("max_results", 10),
+            freshness_days=source.get("freshness_days", 7),
         )
 
         posts = []

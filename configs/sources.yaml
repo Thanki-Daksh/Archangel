@@ -3,23 +3,35 @@
 # Collectors read this file to know which channels to monitor.
 
 sources:
-  - id: reddit_automation
+  - id: reddit_hiring
     type: reddit
-    subreddits: ["automation", "Python", "nocode", "smallbusiness", "entrepreneur"]
-    query: "need help automation"
-    max_results: 10
+    subreddits: ["hiring", "forhire", "freelance_forhire", "jobbit"]
+    query: "[Hiring] developer"
+    max_results: 15
     enabled: true
 
-  - id: reddit_forhire
+  - id: reddit_python_jobs
     type: reddit
-    subreddits: ["forhire", "freelance", "forhire"]
-    query: "looking for developer"
-    max_results: 10
+    subreddits: ["pythonforhire", "Python", "automation"]
+    query: "hiring python"
+    max_results: 15
     enabled: true
 
   - id: reddit_webdev
     type: reddit
-    subreddits: ["webdev", "web_design", "flask", "django"]
-    query: "help needed build"
+    subreddits: ["webdev", "django", "flask"]
+    query: "hiring web developer"
+    max_results: 15
+    enabled: true
+
+  - id: x_hiring_dev
+    type: x
+    query: "hiring python developer"
+    max_results: 10
+    enabled: true
+
+  - id: x_hiring_automation
+    type: x
+    query: "looking to hire developer"
     max_results: 10
     enabled: true

@@ -232,11 +232,45 @@ def cmd_status(console: Console, as_json: bool = False) -> bool:
     return True
 
 
-def cmd_watch(console: Console) -> bool:
-    """Live event stream placeholder."""
-    console.print("[yellow]watch[/] — Live event stream.")
-    console.print("This feature will stream events from the Event Bus in real time.")
-    console.print("Start the platform first with [bold]archangel summon[/].")
+def cmd_watch(console: Console, duration_seconds: float | None = None) -> bool:
+    """Stream published events from the EventBus in real time."""
+    from archangel.events import EventBus
+
+    bus = EventBus.get_instance()
+
+    console.print()
+    console.print(Panel.fit(
+        "[bold cyan]📡 Live Event Stream — Watching EventBus[/]\n"
+        "[dim]Subscribed to all events ('*'). Press Ctrl+C to stop streaming.[/]",
+        border_style="cyan",
+    ))
+    console.print()
+
+    events_received = 0
+
+    def _event_handler(payload: dict) -> None:
+        nonlocal events_received
+        events_received += 1
+        event_type = payload.get("event_type", "event")
+        ts = time.strftime("%H:%M:%S")
+        data_summary = {k: v for k, v in payload.items() if k != "event_type"}
+        summary_str = str(data_summary)[:120]
+        console.print(f"[dim]{ts}[/dim] [bold cyan]{event_type}[/bold cyan] [white]{summary_str}[/white]")
+
+    bus.subscribe("*", _event_handler)
+
+    start_time = time.time()
+    try:
+        while True:
+            time.sleep(0.2)
+            if duration_seconds and (time.time() - start_time) >= duration_seconds:
+                break
+    except KeyboardInterrupt:
+        pass
+    finally:
+        bus.unsubscribe("*", _event_handler)
+
+    console.print(f"\n[yellow]Live event stream stopped ({events_received} events captured).[/yellow]")
     return True
 
 
@@ -423,7 +457,7 @@ def cmd_leads(console: Console, query: str | None = None, limit: int = 10) -> bo
             query = re.sub(r'\b(?:message|msg|text):\s*("[^"]+"|\'[^\']+\'|.+?)(?=\s+\b(?:max|fresh|comments?|message|msg|text):|$)', '', query, flags=re.IGNORECASE).strip()
 
     if not query or query.strip().lower() in ("list", "saved", "all"):
-        leads = storage.get_leads(limit=limit)
+        leads = storage.get_leads(limit=limit, leads_only=True)
         if not leads:
             console.print("[yellow]No leads found in storage yet. Run [bold]leads <query>[/bold] to find live leads.[/]")
             return True
@@ -744,6 +778,9 @@ def cmd_registry_info(console: Console, name: str) -> bool:
 
 def cmd_start_telegram(console: Console) -> bool:
     """Start Telegram remote control bridge on demand."""
+    from dotenv import load_dotenv
+    load_dotenv(_get_project_root() / ".env", override=False)
+
     from archangel.plugins.telegram_bridge import TelegramBridge, get_running_telegram_bridge_info
 
     is_running, pid, is_current = get_running_telegram_bridge_info()
@@ -760,6 +797,14 @@ def cmd_start_telegram(console: Console) -> bool:
     if success:
         _step(console, "Telegram bridge active")
         console.print(f"[bold green]✓ {msg}[/]")
+        console.print("[dim]Press Ctrl+C to stop the Telegram bridge.[/dim]\n")
+        try:
+            while bridge.is_running:
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Stopping Telegram bridge...[/yellow]")
+            bridge.stop()
+            console.print("[bold green]✓ Telegram bridge stopped.[/bold green]")
         return True
     else:
         _print_error_panel(

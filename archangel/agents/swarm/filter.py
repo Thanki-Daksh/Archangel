@@ -1,13 +1,19 @@
-"""TokenFreeFilter — 0-token high-speed Regex and Keyword matrix matcher."""
-
 import re
+import time
 import logging
 from typing import Dict, Any, List, Set, Optional
 from archangel.memory.profile import UserProfileMemory
 
 logger = logging.getLogger(__name__)
 
-# Core lead intent patterns (compiled for speed)
+UNIT_SECONDS = {
+    "h": 3600, "hour": 3600, "hours": 3600,
+    "d": 86400, "day": 86400, "days": 86400,
+    "w": 604800, "week": 604800, "weeks": 604800,
+    "m": 2592000, "month": 2592000, "months": 2592000,
+    "y": 31536000, "year": 31536000, "years": 31536000,
+}
+
 LEAD_INTENT_PATTERNS = [
     re.compile(r"\b(hiring|looking for|need|want|seeking|in search of)\b", re.IGNORECASE),
     re.compile(r"\b(developer|engineer|freelancer|coder|programmer|contractor)\b", re.IGNORECASE),
@@ -20,18 +26,75 @@ GENERIC_EXCLUSION_PATTERNS = [
 ]
 
 
+def parse_fresh_range(fresh_str: Optional[str]) -> Optional[tuple[float, float]]:
+    """Parses freshness strings like '3d', '1-10d', '2 weeks', '1-2y', '1-10 days' into (min_age_sec, max_age_sec)."""
+    if not fresh_str or not fresh_str.strip():
+        return None
+
+    s = fresh_str.strip().lower()
+
+    # Matches "1-10d", "1-10 days", "3d", "3 days", "1 - 10 days"
+    m = re.match(r"^(\d+)(?:\s*-\s*(\d+))?\s*([a-z]+)$", s)
+    if not m:
+        return None
+
+    v1 = int(m.group(1))
+    v2 = int(m.group(2)) if m.group(2) else None
+    unit = m.group(3)
+
+    unit_sec = UNIT_SECONDS.get(unit, 86400)
+
+    if v2 is not None:
+        min_val = min(v1, v2)
+        max_val = max(v1, v2)
+        return (float(min_val * unit_sec), float(max_val * unit_sec))
+    else:
+        return (0.0, float(v1 * unit_sec))
+
+
 class TokenFreeFilter:
     """Evaluates raw posts locally using regex matching and rules from root you.txt."""
 
-    def __init__(self, profile_memory: Optional[UserProfileMemory] = None) -> None:
+    def __init__(
+        self,
+        profile_memory: Optional[UserProfileMemory] = None,
+        leads_query: Optional[str] = None,
+        fresh: Optional[str] = None,
+    ) -> None:
         self.profile_memory = profile_memory or UserProfileMemory()
+        self.leads_query = leads_query.strip() if leads_query else None
+        self.query_keywords = [
+            k.lower() for k in re.split(r"\s+", self.leads_query) if len(k) > 2
+        ] if self.leads_query else []
+        self.fresh_str = fresh.strip() if fresh else None
+        self.fresh_range = parse_fresh_range(self.fresh_str)
 
-    def evaluate(self, content: str, title: str = "", source: str = "") -> Dict[str, Any]:
+    def evaluate(
+        self,
+        content: str,
+        title: str = "",
+        source: str = "",
+        timestamp: float = 0.0,
+    ) -> Dict[str, Any]:
         """Evaluates content using 0 LLM tokens.
         
         Returns:
             dict with 'is_lead' (bool), 'confidence' (float), 'matched_keywords' (list), and 'is_excluded' (bool).
         """
+        # Freshness filter evaluation if post has a timestamp
+        if self.fresh_range and timestamp > 0:
+            min_age, max_age = self.fresh_range
+            now_ts = time.time()
+            age_sec = now_ts - timestamp
+            if age_sec < min_age or age_sec > max_age:
+                return {
+                    "is_lead": False,
+                    "confidence": 0.0,
+                    "reason": f"Post age ({age_sec / 86400:.1f} days) outside --fresh range '{self.fresh_str}'",
+                    "matched_keywords": [],
+                    "is_excluded": True,
+                }
+
         full_text = f"{title} {content}".strip()
         if not full_text:
             return {"is_lead": False, "confidence": 0.0, "matched_keywords": [], "is_excluded": False}
@@ -61,13 +124,30 @@ class TokenFreeFilter:
                     }
 
         # 3. Match Lead Intent Signatures
+        text_lower = full_text.lower()
+
+        # If specific leads_query provided, enforce query match
+        if self.leads_query:
+            exact_match = self.leads_query.lower() in text_lower
+            kw_match = any(kw in text_lower for kw in self.query_keywords)
+            if not (exact_match or kw_match):
+                return {
+                    "is_lead": False,
+                    "confidence": 0.0,
+                    "reason": f"Post does not match requested leads topic: '{self.leads_query}'",
+                    "matched_keywords": [],
+                    "is_excluded": True,
+                }
+
         intent_matches = sum(1 for p in LEAD_INTENT_PATTERNS if p.search(full_text))
         if intent_matches == 0:
             return {"is_lead": False, "confidence": 0.0, "matched_keywords": [], "is_excluded": False}
 
         # 4. Match Positive Skills (from you.txt and default dictionary)
         matched_keywords: Set[str] = set()
-        text_lower = full_text.lower()
+
+        if self.leads_query:
+            matched_keywords.add(self.leads_query)
 
         if self.profile_memory.positive_keywords:
             for pos in self.profile_memory.positive_keywords:

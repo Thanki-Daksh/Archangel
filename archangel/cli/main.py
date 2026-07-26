@@ -156,153 +156,12 @@ from archangel.cli.handlers import (
 
 
 
-_ANTI_YAP_INSTRUCTION = (
-    "\n\nDIRECT & CONCISE RULES:\n"
-    "1. NEVER introduce yourself, state your job title, or explain your domain expertise unless explicitly asked.\n"
-    "2. NO formal greetings or intro speeches ('Greetings', 'I am the...'). Get straight to business.\n"
-    "3. Keep default responses under 1-3 direct, punchy sentences.\n"
-    "4. If the user says 'hi' or 'hello', reply in a single casual line (e.g. 'Hey, what do you need help with?')."
+from archangel.cli.repl import (
+    AGENT_SYSTEM_PROMPTS,
+    _classify_agent_topic,
+    get_archangel_keybindings,
+    create_prompt_session as _create_prompt_session,
 )
-
-AGENT_SYSTEM_PROMPTS = {
-    "collector": (
-        "You are Archangel Collector Agent (archangel.collector), managing web scraping, RSS feeds, Reddit API, X search, and data acquisition."
-        + _ANTI_YAP_INSTRUCTION
-    ),
-    "intelligence": (
-        "You are Archangel Intelligence Agent (archangel.intelligence), managing intent classification, complaint pattern matching, and lead detection."
-        + _ANTI_YAP_INSTRUCTION
-    ),
-    "scoring": (
-        "You are Archangel Scoring Agent (archangel.scoring), managing lead urgency scoring, budget confidence metrics, and priority queues."
-        + _ANTI_YAP_INSTRUCTION
-    ),
-    "guardian": (
-        "You are Archangel Guardian Agent (archangel.guardian), managing system health monitoring, error telemetry, and diagnostic stability."
-        + _ANTI_YAP_INSTRUCTION
-    ),
-    "commander": (
-        "You are Archangel Commander Agent (archangel.commander), managing platform task orchestration, agent lifecycles, and command dispatch."
-        + _ANTI_YAP_INSTRUCTION
-    ),
-    "storage": (
-        "You are Archangel Storage Agent (archangel.storage), managing SQLite WAL concurrency, lead indexing, deduplication, and data exports."
-        + _ANTI_YAP_INSTRUCTION
-    ),
-    "notification": (
-        "You are Archangel Notification Agent (archangel.notification), managing Telegram bridge alerts, Discord webhooks, and message delivery."
-        + _ANTI_YAP_INSTRUCTION
-    ),
-}
-
-
-def _classify_agent_topic(text: str) -> str:
-    """Classify user message topic and return matching agent name."""
-    t = text.lower()
-    if "@collector" in t or "collector" in t and ("feed" in t or "scrape" in t or "source" in t):
-        return "collector"
-    if "@intelligence" in t or "intelligence" in t and ("lead" in t or "intent" in t or "classify" in t):
-        return "intelligence"
-    if "@scoring" in t or "scoring" in t and ("rank" in t or "score" in t or "budget" in t or "urgency" in t):
-        return "scoring"
-    if "@guardian" in t or "guardian" in t and ("health" in t or "error" in t or "status" in t or "crash" in t):
-        return "guardian"
-    if "@commander" in t or "commander" in t and ("task" in t or "orchestrat" in t or "run" in t):
-        return "commander"
-    if "@storage" in t or "storage" in t and ("database" in t or "sqlite" in t or "count" in t or "export" in t):
-        return "storage"
-    if "@notification" in t or "notification" in t and ("telegram" in t or "discord" in t or "alert" in t):
-        return "notification"
-
-    # Secondary topic matching
-    if any(k in t for k in ("scrape", "rss", "reddit", "twitter", "tweet", "x.com", "html", "url", "web", "fetch")):
-        return "collector"
-    if any(k in t for k in ("database", "sqlite", "wal", "db", "table", "sql", "record", "save")):
-        return "storage"
-    if any(k in t for k in ("telegram", "discord", "webhook", "notify", "message", "alert", "bot")):
-        return "notification"
-    if any(k in t for k in ("health", "log", "error", "fail", "crash", "guardian", "monitor", "telemetry")):
-        return "guardian"
-    if any(k in t for k in ("score", "rank", "urgent", "budget", "pricing", "priority")):
-        return "scoring"
-    if any(k in t for k in ("task", "orchestrat", "commander", "agent", "state", "daemon", "process")):
-        return "commander"
-
-    return "intelligence"
-
-
-def get_archangel_keybindings():
-    """Create custom key bindings for Ctrl+Z (Undo), Ctrl+Y (Redo), Ctrl+A, Ctrl+E, Ctrl+U, Ctrl+K, Ctrl+L, Ctrl+W."""
-    try:
-        from prompt_toolkit.key_binding import KeyBindings
-
-        kb = KeyBindings()
-
-        @kb.add("c-z")
-        def _undo(event):
-            event.current_buffer.undo()
-
-        @kb.add("c-y")
-        def _redo(event):
-            event.current_buffer.redo()
-
-        @kb.add("c-a")
-        def _home(event):
-            event.current_buffer.cursor_position = 0
-
-        @kb.add("c-e")
-        def _end(event):
-            event.current_buffer.cursor_position = len(event.current_buffer.text)
-
-        @kb.add("c-u")
-        def _clear_line_before(event):
-            pos = event.current_buffer.cursor_position
-            event.current_buffer.text = event.current_buffer.text[pos:]
-            event.current_buffer.cursor_position = 0
-
-        @kb.add("c-k")
-        def _clear_line_after(event):
-            pos = event.current_buffer.cursor_position
-            event.current_buffer.text = event.current_buffer.text[:pos]
-
-        @kb.add("c-l")
-        def _clear_screen(event):
-            event.app.renderer.clear()
-
-        @kb.add("c-w")
-        def _delete_word_before(event):
-            event.current_buffer.delete_before_cursor(count=1)
-
-        return kb
-    except Exception:
-        return None
-
-
-def _create_prompt_session(
-    prompt_str: str,
-    hist_filename: str,
-    completer=None,
-    complete_while_typing: bool = False
-):
-    """Helper to create a PromptSession with custom Ctrl key bindings and persistent history."""
-    try:
-        from prompt_toolkit import PromptSession
-        from prompt_toolkit.history import FileHistory
-
-        hist_path = Path.home() / hist_filename
-        hist_path.parent.mkdir(parents=True, exist_ok=True)
-        kb = get_archangel_keybindings()
-        kwargs = {
-            "history": FileHistory(str(hist_path)),
-            "key_bindings": kb,
-        }
-        if completer:
-            kwargs["completer"] = completer
-            kwargs["complete_while_typing"] = complete_while_typing
-
-        return PromptSession(prompt_str, **kwargs)
-    except Exception:
-        return None
 
 
 def _handle_slash_intercept(raw: str, console: Console, history: list) -> bool:
@@ -1693,6 +1552,31 @@ class _ArchangelGroup(click.Group):
 # CLI layer (Click)  — thin wrappers around cmd_* functions
 # ---------------------------------------------------------------------------
 
+class _SwarmCommand(click.Command):
+    """Custom Click command that transforms short flag aliases in args before option parsing."""
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        new_args: list[str] = []
+        for arg in args:
+            if arg in ("-w-i", "--w-i", "-wi", "--wi", "-w_i", "--w_i"):
+                new_args.append("--write-interval")
+            elif arg == "--w":
+                new_args.append("-w")
+            elif arg == "--f":
+                new_args.append("-f")
+            elif arg == "--l":
+                new_args.append("-l")
+            elif arg == "--t":
+                new_args.append("-t")
+            elif arg == "--d":
+                new_args.append("-d")
+            elif arg == "--o":
+                new_args.append("-o")
+            else:
+                new_args.append(arg)
+        return super().parse_args(ctx, new_args)
+
+
 @click.group(
     cls=_ArchangelGroup,
     invoke_without_command=True,
@@ -2028,28 +1912,84 @@ def groupchat_cmd() -> None:
     run_groupchat_repl(_console)
 
 
-@cli.command("swarm")
-@click.option("--duration", default="3h", help="Duration to run swarm (e.g. 30s, 3h, continuous).")
-@click.option("--output", default="data/swarm_leads.log", help="Path to output stream log file.")
-@click.option("--targets", default="all", help="Target platforms, links, or 'all'.")
-@click.option("--workers", default=500, help="Max worker tasks in pool.")
-def swarm_cmd(duration: str, output: str, targets: str, workers: int) -> None:
-    """Launch 24/7 token-efficient agent swarm."""
+def swarm_options(f):
+    f = click.option("-d", "--duration", "--d", "duration", default="3h", help="Duration to run swarm (e.g. 30s, 3h, continuous).")(f)
+    f = click.option("-o", "--output", "--o", "output", default="data/swarm_leads.log", help="Path to output stream log file.")(f)
+    f = click.option("--targets", default="all", help="Target platforms, links, or 'all'.")(f)
+    f = click.option("-w", "--workers", "--w", "workers", default=1000, help="Max worker tasks in pool.")(f)
+    f = click.option("-l", "--leads", "--l", "--query", "leads_query", default=None, help="Target specific lead topic/niche (e.g. 'website development').")(f)
+    f = click.option("-f", "--fresh", "--f", "fresh", default=None, help="Freshness age filter e.g. '3d', '1-10d', '2w', '1y', '1-10 days'.")(f)
+    f = click.option("--write-interval", "--w-i", "-wi", "--wi", "--flush-interval", "write_interval", default=None, help="File write flush interval e.g. '10s', '5s', '1m'.")(f)
+    f = click.option("-t", "--telegram", "--t", "telegram_mode", default="off", type=click.Choice(["on", "off"], case_sensitive=False), help="Auto-broadcast live monitor table to Telegram ('on' or 'off', default: 'off').")(f)
+    f = click.option("--append", is_flag=True, default=False, help="Append to log file instead of starting fresh from 0.")(f)
+    return f
+
+
+def _run_swarm(
+    duration: str,
+    output: str,
+    targets: str,
+    workers: int,
+    leads_query: str | None,
+    fresh: str | None,
+    write_interval: str | None,
+    telegram_mode: str,
+    append: bool,
+) -> None:
     import asyncio
     from pathlib import Path
     from archangel.agents.swarm.manager import SwarmManager
 
-    _console.print(f"[bold cyan]⚔ Summoning 24/7 Agent Swarm... (Duration: {duration}, Workers: {workers})[/]")
+    msg = f"[bold cyan]⚔ Summoning 24/7 Agent Swarm... (Duration: {duration}, Workers: {workers})"
+    if leads_query:
+        msg += f" [Leads Query: '{leads_query}']"
+    if fresh:
+        msg += f" [Freshness: '{fresh}']"
+    if write_interval:
+        msg += f" [Write Interval: '{write_interval}']"
+    if telegram_mode.lower() == "on":
+        msg += " [Telegram Broadcast: ON]"
+    else:
+        msg += " [Telegram Broadcast: OFF]"
+    msg += "[/]"
+    _console.print(msg)
+
     manager = SwarmManager(
         duration=duration,
         output_path=Path(output),
         targets=targets,
         max_workers=workers,
+        leads_query=leads_query,
+        reset_log=not append,
+        fresh=fresh,
+        write_interval=write_interval,
+        telegram=(telegram_mode.lower() == "on"),
     )
     try:
         asyncio.run(manager.run())
     except (KeyboardInterrupt, SystemExit):
         _console.print("\n[bold yellow]✔ Swarm safely stopped.[/bold yellow]")
+
+
+@cli.command("swarm", cls=_SwarmCommand)
+@swarm_options
+def swarm_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
+    """Launch 24/7 token-efficient agent swarm."""
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
+
+
+@cli.command("as", cls=_SwarmCommand)
+@swarm_options
+def as_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
+    """Shortcut alias for 'agent swarm'."""
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
+
+
+@cli.command("s", cls=_SwarmCommand)
+@swarm_options
+def s_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
+    """Shortcut alias for 'swarm'."""
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
 
 
 @cli.group("agent", invoke_without_command=True)
@@ -2060,28 +2000,40 @@ def agent_group(ctx: click.Context) -> None:
         run_agents_hub_repl(_console)
 
 
-@agent_group.command("swarm")
-@click.option("--duration", default="3h", help="Duration to run swarm (e.g. 30s, 3h, continuous).")
-@click.option("--output", default="data/swarm_leads.log", help="Path to output stream log file.")
-@click.option("--targets", default="all", help="Target platforms, links, or 'all'.")
-@click.option("--workers", default=500, help="Max worker tasks in pool.")
-def agent_swarm_subcmd(duration: str, output: str, targets: str, workers: int) -> None:
+@agent_group.command("swarm", cls=_SwarmCommand)
+@swarm_options
+def agent_swarm_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
     """Launch 24/7 token-efficient agent swarm."""
-    import asyncio
-    from pathlib import Path
-    from archangel.agents.swarm.manager import SwarmManager
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
 
-    _console.print(f"[bold cyan]⚔ Summoning 24/7 Agent Swarm... (Duration: {duration}, Workers: {workers})[/]")
-    manager = SwarmManager(
-        duration=duration,
-        output_path=Path(output),
-        targets=targets,
-        max_workers=workers,
-    )
-    try:
-        asyncio.run(manager.run())
-    except (KeyboardInterrupt, SystemExit):
-        _console.print("\n[bold yellow]✔ Swarm safely stopped.[/bold yellow]")
+
+@agent_group.command("s", cls=_SwarmCommand)
+@swarm_options
+def agent_s_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
+    """Shortcut alias for 'agent swarm'."""
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
+
+
+@cli.group("a", invoke_without_command=True)
+@click.pass_context
+def a_group(ctx: click.Context) -> None:
+    """Shortcut alias for 'agent' subsystem."""
+    if ctx.invoked_subcommand is None:
+        run_agents_hub_repl(_console)
+
+
+@a_group.command("swarm", cls=_SwarmCommand)
+@swarm_options
+def a_swarm_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
+    """Shortcut alias for 'agent swarm'."""
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
+
+
+@a_group.command("s", cls=_SwarmCommand)
+@swarm_options
+def a_s_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
+    """Shortcut alias for 'agent swarm' (aa a s)."""
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
 
 
 # ---------------------------------------------------------------------------

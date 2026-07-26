@@ -65,10 +65,11 @@ def run_once() -> dict[str, Any]:
     notifier = NotificationAgent()
     event_bus = EventBus.get_instance()
 
+    enabled_sources_count = collector.get_enabled_sources_count()
     raw_posts = collector.collect_all()
     if not raw_posts:
         return {
-            "sources_checked": 0,
+            "sources_checked": enabled_sources_count,
             "posts_collected": 0,
             "leads_identified": 0,
             "leads_stored": 0,
@@ -80,7 +81,7 @@ def run_once() -> dict[str, Any]:
     if not unprocessed_posts:
         logger.info("Scan complete: All %d collected posts were already processed.", len(raw_posts))
         return {
-            "sources_checked": len(raw_posts),
+            "sources_checked": max(enabled_sources_count, len(raw_posts)),
             "posts_collected": len(raw_posts),
             "leads_identified": 0,
             "leads_stored": 0,
@@ -109,6 +110,26 @@ def run_once() -> dict[str, Any]:
             stored += 1
             if analysis.is_lead:
                 leads_found += 1
+                eval_dict = {
+                    "is_lead": True,
+                    "confidence": analysis.confidence,
+                    "score": lead_score.score,
+                    "priority": "HIGH" if lead_score.score >= 75 else "MEDIUM" if lead_score.score >= 50 else "LOW",
+                    "reasoning": analysis.reasoning,
+                    "recommended_action": analysis.recommended_action,
+                    "estimated_budget": analysis.estimated_budget,
+                    "matched_keywords": analysis.tags,
+                    "keyword_score": f"{lead_score.keyword_score:.1f}/40",
+                    "budget_score": f"{lead_score.budget_score:.1f}/20",
+                    "urgency_score": f"{lead_score.urgency_score:.1f}/20",
+                    "relevance_score": f"{lead_score.recency_score:.1f}/20",
+                }
+                from pathlib import Path
+                from archangel.agents.swarm.logger import SwarmFileWriter, format_lead_block
+                swarm_writer = SwarmFileWriter(Path("data/swarm_leads.log"))
+                swarm_writer.write_batch([format_lead_block(post, eval_dict, post_id)])
+                swarm_writer.close()
+
                 event_bus.publish("lead.discovered", {
                     "post": post,
                     "analysis": analysis,

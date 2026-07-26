@@ -34,15 +34,35 @@ class BasePlatformWorker(ABC):
                 posts = await self.fetch_posts()
                 self.scanned_count += len(posts)
                 for p in posts:
+                    if not self.is_running:
+                        break
                     await callback(p)
                 backoff = 1.0  # Reset backoff on success
+            except asyncio.CancelledError:
+                break
             except Exception as e:
                 logger.warning("Worker %s encountered error on %s: %s. Backing off %.1fs",
                                self.target.platform, self.target.target_url, e, backoff)
-                await asyncio.sleep(backoff)
+                try:
+                    await asyncio.sleep(backoff)
+                except asyncio.CancelledError:
+                    break
                 backoff = min(backoff * 2.0, 60.0)
 
-            await asyncio.sleep(self.target.poll_interval)
+            if not self.is_running:
+                break
+
+            # Responsive poll sleep check
+            poll_steps = int(self.target.poll_interval / 0.5) or 1
+            step_duration = self.target.poll_interval / poll_steps
+            for _ in range(poll_steps):
+                if not self.is_running:
+                    break
+                try:
+                    await asyncio.sleep(step_duration)
+                except asyncio.CancelledError:
+                    self.is_running = False
+                    break
 
     def stop(self) -> None:
         self.is_running = False

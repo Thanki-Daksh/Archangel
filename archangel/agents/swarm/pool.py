@@ -25,7 +25,7 @@ class SwarmPool:
     def __init__(
         self,
         pipeline: StoragePipeline,
-        max_workers: int = 500,
+        max_workers: int = 1000,
     ) -> None:
         self.pipeline = pipeline
         self.max_workers = max_workers
@@ -59,11 +59,20 @@ class SwarmPool:
         await self.pipeline.submit(post)
 
     async def start(self, targets: List[SwarmTarget]) -> None:
-        """Launches all worker micro-agent tasks in the pool."""
+        """Launches all worker micro-agent tasks in the pool up to max_workers capacity."""
         self.workers.clear()
         self.tasks.clear()
 
-        selected_targets = targets[:self.max_workers]
+        if not targets:
+            logger.warning("SwarmPool received empty targets list.")
+            return
+
+        if len(targets) < self.max_workers:
+            import itertools
+            selected_targets = list(itertools.islice(itertools.cycle(targets), self.max_workers))
+        else:
+            selected_targets = targets[:self.max_workers]
+
         logger.info("Starting SwarmPool with %d active workers (max cap: %d)",
                     len(selected_targets), self.max_workers)
 

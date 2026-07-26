@@ -16,12 +16,11 @@ def test_enrichment_engine():
     )
     res = engine.enrich_post(post)
 
-    assert res["domain"] == "acme-inc.io"
-    assert res["company_name"] == "Acme-inc"
+    assert res["company_profile"]["domain"]["value"] == "acme-inc.io"
+    assert res["company_profile"]["company_name"]["value"] == "Acme-inc"
     assert "Python" in res["detected_tech"]
-    assert len(res["social_links"]) == 1
-    assert res["social_links"][0]["platform"] == "github"
-    assert res["social_links"][0]["handle"] == "acme"
+    assert "github" in res["company_profile"]["socials"]["value"]
+    assert res["company_profile"]["socials"]["value"]["github"] == "acme"
 
 
 def test_enrichment_agent_and_storage(tmp_path):
