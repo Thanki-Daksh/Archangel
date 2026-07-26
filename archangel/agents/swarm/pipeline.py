@@ -333,6 +333,15 @@ class EnrichmentProcessor:
         self._running = False
         self._task: Optional[asyncio.Task] = None
         self.processed_count = 0
+        target_file = output_path or Path("data/swarm_leads.log")
+        if target_file.exists():
+            try:
+                txt = target_file.read_text(encoding="utf-8", errors="ignore")
+                found_ids = [int(m) for m in re.findall(r"CRM LEAD REPORT #(\d+)", txt)]
+                if found_ids:
+                    self.processed_count = max(found_ids)
+            except Exception:
+                pass
 
     async def start(self) -> None:
         self._running = True
@@ -376,7 +385,8 @@ class EnrichmentProcessor:
                 
                 # Format complete CRM report and emit to data/swarm_leads.log
                 if lead_obj:
-                    report_block = format_lead_block(lead_obj)
+                    self.processed_count += 1
+                    report_block = format_lead_block(lead_obj, lead_num=self.processed_count)
                     self.file_writer.write_batch([report_block])
                     
                     # Emit lead.saved event for Telegram / CLI consumers
@@ -384,8 +394,6 @@ class EnrichmentProcessor:
                         "lead": lead_obj,
                         "raw_post_id": row_id,
                     })
-
-                self.processed_count += 1
             except Exception as e:
                 logger.error("EnrichmentProcessor failed for lead %s: %s", row_id, e)
             finally:

@@ -225,7 +225,7 @@ class SmartScraper:
             # Deduplicate preserving order
             return list(dict.fromkeys(tweet_urls))[:max_results]
         except Exception as e:
-            logger.error("Google search failed: %s", e)
+            logger.debug("Google search fallback silent error: %s", e)
             return []
 
     def _tweet_is_recent(self, url: str, days: int = 5) -> bool:

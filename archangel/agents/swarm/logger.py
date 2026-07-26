@@ -38,11 +38,24 @@ def clean_html_text(text: str) -> str:
 from archangel.models import RawPost, Lead
 
 
-def format_lead_block(lead_or_post: Any, evaluation: Optional[Dict[str, Any]] = None, raw_post_id: int = 0) -> str:
+def format_lead_block(
+    lead_or_post: Any,
+    evaluation: Optional[Dict[str, Any]] = None,
+    raw_post_id: int = 0,
+    lead_num: Optional[int] = None,
+) -> str:
     """Formats a canonical Lead object (or fallback RawPost) into Archangel V1.3's full CRM Intelligence Report."""
     now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    if isinstance(lead_or_post, Lead):
+    if lead_num is not None and lead_num > 0:
+        post_id = lead_num
+        if isinstance(lead_or_post, Lead):
+            lead = lead_or_post
+            post = lead.raw_post or RawPost()
+        else:
+            post = lead_or_post or RawPost()
+            lead = Lead(id=post_id, raw_post=post, evaluation=evaluation or {})
+    elif isinstance(lead_or_post, Lead):
         lead = lead_or_post
         post = lead.raw_post or RawPost()
         post_id = lead.id or raw_post_id
