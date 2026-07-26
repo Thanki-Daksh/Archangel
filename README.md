@@ -1,22 +1,107 @@
-# ⚔ The Archangel V1.3
+# ⚔️ Archangel V1.3
 
-> *An autonomous, AI-powered lead intelligence platform built around specialized agents.*
+> Autonomous AI-powered Lead Intelligence Platform
+
+Discover. Analyze. Enrich. Score. Close.
+
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python)
+![SQLite](https://img.shields.io/badge/SQLite-WAL--Mode-003B57?style=for-the-badge&logo=sqlite)
+![Gemini](https://img.shields.io/badge/Gemini_AI-2.5_Flash-8E75B2?style=for-the-badge&logo=google)
+![AsyncIO](https://img.shields.io/badge/AsyncIO-Event_Bus-FFD43B?style=for-the-badge)
+![AI Agents](https://img.shields.io/badge/AI_Agents-Autonomous-green?style=for-the-badge)
+
+Archangel is an autonomous B2B lead intelligence platform built for software developers, agencies, and founders. It turns unstructured online discussions across Reddit, X (Twitter), GitHub, and RSS streams into qualified, enriched commercial leads.
+
+Instead of spending hours manually searching forums or reading noise, Archangel uses AI Intent Expansion to generate 25+ buying intent search vectors, scans thousands of streams in parallel, enriches target company profiles, detects tech stacks, calculates revenue estimates, and generates personalized outreach pitches automatically.
+
+Built on an asynchronous event-driven architecture with zero-token local filters, 128-thread worker pools, and persistent SQLite storage, Archangel delivers complete CRM Intelligence Reports straight to your console or Telegram.
 
 ---
 
-# What is The Archangel?
+## Preview
 
-The Archangel is the successor to Leads Bot.
-
-It is **not** a Telegram scraper.
-
-It is **not** another automation script.
-
-It is an autonomous intelligence platform designed to continuously discover, analyze, rank, organize, and notify software development opportunities from multiple online sources.
-
-The project's philosophy is simple:
-
+### ⚔️ Live Agent Swarm Dashboard
+```text
+┌────────────────────────── Archangel Swarm Monitor ──────────────────────────┐
+│ Active Workers:              300 / 1000                                     │
+│ Runtime Elapsed:             00h 02m 04s (Target: 24h 00m 00s)              │
+│ Output Stream:               data\swarm_leads.log                           │
+│ Token Cost:                  $0.00 (100% Token-Free Regex Engine)           │
+│ Posts Scanned (This Run):    7,785                                          │
+│ Qualified Leads (This Run):  5                                              │
+│                                                                             │
+│ Discovery Queue:             0 / 5,000                                      │
+│ Storage Queue:               0 / 2,000                                      │
+│ Batch Stats:                 Avg size: 1.7 | Avg flush: 1760.3ms            │
+│ Writes:                      3 OK | 0 Failed                                │
+│ Persisted (This Run):        5 leads                                        │
+│ Backpressure:                0 warnings                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Installation
+
+### Clone the repository
+```bash
+git clone https://github.com/Thanki-Daksh/Archangel.git
+```
+
+### Enter the project
+```bash
+cd Archangel
+```
+
+### Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### Run setup
+```bash
+archangel setup
+```
+
+### Start the swarm
+```bash
+archangel swarm
+```
+
+---
+
+## Quick Start
+
+```bash
+# 1. Run system diagnostics & verify dependencies
+archangel doctor
+
+# 2. Interactive setup wizard for profile & AI keys
+archangel setup
+
+# 3. Launch 24/7 autonomous agent swarm for a query
+archangel swarm -l "website development"
+
+# 4. View active persistent configuration
+archangel config
+
+# 5. Clear or inspect local lead logs
+archangel leads log --wipe --db
+```
+
+- `archangel doctor` — Diagnostic tool for checking Python, internet, Telegram, Gemini API, SQLite, and scraper health.
+- `archangel setup` — Interactive wizard for user profile, business details, AI keys, and search preferences.
+- `archangel swarm` — Launches the 300+ worker parallel discovery and enrichment pipeline.
+- `archangel leads` — Manages, filters, wipes, or views CRM intelligence lead reports.
+- `archangel config` — Inspects persistent settings stored in `~/.archangel/`.
+
+---
+
+## What is Archangel?
+
+Archangel is designed around one continuous operational pipeline:
+
+```text
 Internet
     ↓
 Observe
@@ -30,769 +115,184 @@ Enrich
 Notify
 ```
 
-The developer should never waste time manually searching for opportunities.
+### Why it exists
+Most developers and agencies waste hundreds of hours manually browsing job boards, Reddit subreddits, and X feeds looking for contract work or client projects. Generic web scrapers only collect raw text and spam.
 
-Instead, The Archangel continuously watches configured sources, filters noise using AI, and delivers only high-value opportunities.
-
----
-
-# Design Goals
-
-The project is designed around six core principles.
-
-## 1. Intelligence over Collection
-
-Collecting data is easy.
-
-Understanding data is valuable.
-
-Every post should be analyzed before reaching the user.
+Archangel exists to bridge the gap between raw web noise and high-paying client contracts. It acts as an autonomous revenue engine that operates 24/7 in the background—discovering real buyers with active budgets, fingerprinting their tech stack, assessing their AI maturity, and giving you an exact pitch strategy to close the deal.
 
 ---
-
-## 2. Modular Architecture
-
-Every component should be replaceable.
-
-Storage can change.
-
-Models can change.
-
-Collectors can change.
-
-Nothing should require rewriting the system.
-
----
-
-## 3. One Agent = One Responsibility
-
-Each agent exists for exactly one purpose.
-
-Collectors never score.
-
-Storage never analyzes.
-
-Notifications never store.
-
-This makes the system predictable and easy to extend.
-
----
-
-## 4. Event Driven
-
-Agents never call one another directly.
-
-Instead they communicate through events.
-
-```
-Collector
-
-↓
-
-NewPostEvent
-
-↓
-
-Intelligence
-
-↓
-
-LeadScoredEvent
-
-↓
-
-Storage
-
-↓
-
-LeadStoredEvent
-
-↓
-
-Enrichment
-
-↓
-
-LeadEnrichedEvent
-
-↓
-
-Notification
-```
-
-This allows components to be replaced independently.
-
----
-
-## 5. CLI First
-
-The CLI is the primary interface.
-
-Future dashboards may exist.
-
-The CLI remains the source of truth.
-
----
-
-## 6. AI First
-
-The documentation, architecture, and repository are designed so another AI can understand the project without guessing.
-
----
-
-# Architecture
-
-```
-                    User
-                      │
-                      ▼
-                 CLI Interface
-                      │
-                      ▼
-                Commander Agent
-                      │
-        ┌─────────────┼─────────────┐
-        ▼             ▼             ▼
- Collector      Intelligence     Storage
-      │              │
-      └──────┐  ┌────┘
-             ▼  ▼
-          Scoring
-              │
-              ▼
-           Storage
-              │
-              ▼
-         Enrichment
-              │
-              ▼
-       Notification
-              │
-              ▼
-            Export
-```
-
-Guardian monitors every running component.
-
----
-
-# Agents
-
-## Guardian
-
-Supervisor.
-
-Responsibilities
-
-- Monitor health
-- Restart crashed agents
-- Detect stalled queues
-- Runtime metrics
-
-Never performs business logic.
-
----
-
-## Commander
-
-The orchestrator.
-
-Responsibilities
-
-- Read configuration
-- Start agents
-- Stop agents
-- Route events
-- Handle CLI commands
-
-Everything begins here.
-
----
-
-## Collector
-
-Collects raw data.
-
-Sources
-
-- Telegram
-- Reddit
-- Discord
-- GitHub
-- RSS
-- Future plugins
-
-Forbidden
-
-- AI analysis
-- Storage
-- Notifications
-
-Output
-
-```
-RawPostEvent
-```
-
----
-
-## Intelligence
-
-The AI brain.
-
-Determines
-
-- Is it a lead?
-- Confidence
-- Budget
-- Urgency
-- Category
-- Duplicate detection
-- Recommended action
-
-Produces
-
-```
-LeadAnalysisEvent
-```
-
----
-
-## Scoring
-
-Ranks opportunities.
-
-Example
-
-```
-Budget
-
-+
-
-Urgency
-
-+
-
-Confidence
-
-+
-
-Recency
-
-=
-
-Lead Score
-```
-
----
-
-## Storage
-
-Stores
-
-- Raw posts
-- AI analysis
-- Scores
-- Metadata
-- History
-
-No other agent writes directly to the database.
-
----
-
-## Enrichment
-
-Asynchronous background analysis.
-
-Performs
-
-- Website Fingerprinting
-- AI Readiness detection
-- Revenue/ARR estimation
-- Pitch Generation
-- Competition Analysis
-
-Produces
-
-```
-LeadEnrichedEvent
-```
-
----
-
-## Notification
-
-Responsible only for messaging.
-
-Future support
-
-- Telegram
-- Discord
-- Email
-- Desktop
-
----
-
-## Export
-
-Produces
-
-- CSV
-- JSON
-- Markdown
-- Excel
-
----
-
-## Deduplication Engine
-
-Two-tier hybrid deduplication (`archangel/deduplication/`).
-
-- **Tier 1 (Deterministic & Similarity Pre-Filter):** Fast Jaccard + SequenceMatcher similarity scoring & exact key matching.
-- **Tier 2 (LLM Verification):** Uses LLM verification for borderline 0.50–0.88 similarity matches.
-- Links cross-posted leads to canonical profiles in `lead_sources` SQLite table.
-
----
-
-## Auto-Enrichment Engine
-
-Scrapes lead context (`archangel/enrichment/`).
-
-- Extracts company domains, company names, tech stack signatures (Python, React, Rust, Go, AWS, Docker, PostgreSQL), and social profiles (GitHub, Twitter, LinkedIn).
-- Persists data in `lead_enrichments` SQLite table.
-
----
-
-## Lead Lifecycle State Machine
-
-Pipeline state tracker (`archangel/lifecycle/`).
-
-- Manages progression: `discovered` → `analyzed` → `contacted` → `responded` → `negotiating` → `won` / `lost` → `paid` → `archived`.
-- Validates state transitions and logs progression history in `lead_lifecycle` SQLite table.
-
----
-
-## Predictive Scoring with Feedback Loop
-
-Adaptive ML weight tuning (`archangel/scoring/learning.py`).
-
-- Listens to `user.feedback` events (`like`, `ignore`, `converted`) to dynamically adjust lead scoring multipliers to user preferences over time.
-
----
-
-## Outreach Intelligence
-
-Pitch generator (`archangel/outreach/`).
-
-- Generates platform-tuned outreach pitch drafts for Email, Discord, Telegram, and LinkedIn based on lead context and tech stack.
-
----
-
-## Obsidian Knowledge Vault & Graph
-
-Obsidian-compatible Second Brain engine (`archangel/vault/`).
-
-- Generates `.md` lead notes with YAML frontmatter, bi-directional wikilinks (`[[Company:X]]`, `[[Tech:Y]]`), embedded Dataview query blocks, and `.canvas` visual pipeline graphs.
-
----
-
-## Outreach (Implemented)
-
-After approval:
-
-```
-Lead
-  ↓
-Generate Pitch Draft (Email / Discord / Telegram / LinkedIn)
-  ↓
-Wait for user approval
-  ↓
-Send
-```
-
----
-
-# Startup
-
-```
-archangel summon
-```
-
-Sequence
-
-```
-Display Banner
-
-↓
-
-Load Config
-
-↓
-
-Initialize Logger
-
-↓
-
-Load Plugins
-
-↓
-
-Initialize Storage
-
-↓
-
-Guardian
-
-↓
-
-Commander
-
-↓
-
-Collectors
-
-↓
-
-Intelligence
-
-↓
-
-Scoring
-
-↓
-
-Notification
-
-↓
-
-Export
-
-↓
-
-Mission Operational
-```
-
-Output
-
-```
-⚔️ Summoning The Archangel...
-
-✓ Guardian awakened
-
-✓ Commander online
-
-✓ Storage initialized
-
-✓ Collectors online
-
-✓ Intelligence online
-
-✓ Notifications online
-
-Mission Status
-
-OPERATIONAL
-```
-
----
-
-# Shutdown
-
-```
-archangel terminate
-```
-
-Sequence
-
-```
-Stop Collectors
-
-↓
-
-Flush AI Queue
-
-↓
-
-Save Storage
-
-↓
-
-Complete Notifications
-
-↓
-
-Export Pending Reports
-
-↓
-
-Unload Plugins
-
-↓
-
-Shutdown
-```
-
-Output
-
-```
-⚔️ The Archangel returns to the heavens.
-
-Mission Complete.
-```
-
----
-
-# CLI
-
-```
-archangel summon
-```
-
-Start platform.
-
-```
-archangel terminate
-```
-
-Graceful shutdown.
-
-```
-archangel status
-```
-
-System information.
-
-```
-archangel watch
-```
-
-Live activity feed.
-
-```
-archangel scan
-```
-
-One-time scan.
-
-```
-archangel doctor
-```
-
-Diagnostics.
-
-Checks
-
-- Database
-- Plugins
-- Network
-- Queues
-- API Keys
-- Storage
-
-```
-archangel config
-```
-
-Configuration.
-
-```
-archangel export
-```
-
-Export leads.
-
-```
-archangel logs
-```
-
-View logs.
-
-```
-archangel purge
-```
-
-Clean cache.
-
-```
-archangel update
-```
-
-Update plugins.
-
-```
-archangel version
-```
-
-Version.
-
----
-
-# Repository
-
-```
-The_Archangel/
-
-README.md
-
-ARCHANGEL.md
-
-archangel/
-│
-├── cli/
-├── engine/
-├── agents/
-├── collectors/
-├── analyzers/
-├── scoring/
-├── storage/
-├── notifications/
-├── export/
-├── plugins/
-├── utils/
-
-configs/
-
-logs/
-
-data/
-
-docs/
-
-tests/
-```
-
-Every directory has one responsibility.
-
----
-
-# Pipeline
-
-```
-Internet
-
-↓
-
-Collector
-
-↓
-
-Normalize
-
-↓
-
-Intelligence
-
-↓
-
-Score
-
-↓
-
-Storage
-
-↓
-
-Enrichment
-
-↓
-
-Notification
-
-↓
-
-Export
-```
-
-Every stage is replaceable.
-
----
-
-# Plugin Philosophy
-
-Sources are plugins.
-
-```
-plugins/
-
-telegram.py
-
-reddit.py
-
-discord.py
-
-github.py
-```
-
-Drop in.
-
-Restart.
-
-Done.
-
----
-
-# Telegram Remote Operations Bridge
-
-Archangel supports full interactive remote control via a Telegram bot interface whitelisted to authorized user IDs.
 
 ## Features
-- **Smart routing**: Executes commands with or without the leading `/` prefix.
-- **Direct Search**: Query search tools directly via `search <query>`.
-- **LinkedIn Leads Collector**: Query LinkedIn posts via `leads <query>`, scrape matching pages, and extract structured metrics.
-- **Manual Save**: Cache leads results in memory and save them to `data/leads/` on demand using the `save` command.
-- **Scraper Modes**: Switch between `basic` (raw text), `smart` (LLM-summarized), and `continuous` (SiteMonitor tracked) modes via `mode [basic|smart|continuous]`.
+
+- ✅ **AI Intent Expansion Engine** — Generates 25+ buying intent search phrases from a single prompt via Gemini 2.5 Flash.
+- ✅ **Autonomous Agent Swarm** — Scalable 300+ worker thread pool querying Reddit, X, GitHub, and RSS streams in parallel.
+- ✅ **CRM Intelligence Reports** — Generates 14-section structured lead reports with actionable pitch angles.
+- ✅ **Website Fingerprinting** — Automatically detects target frameworks (React, Laravel, Tailwind, Next.js, etc.).
+- ✅ **AI Readiness Detector** — Analyzes whether target companies use OpenAI, Anthropic, Gemini, or LangChain.
+- ✅ **Competition Analysis** — Measures outreach difficulty and market saturation.
+- ✅ **Revenue Estimation** — Estimates commercial ARR ranges and buyer budget tiers.
+- ✅ **Async Event Pipeline** — Decoupled pub/sub architecture using Python `asyncio` queues.
+- ✅ **SQLite WAL Storage** — High-concurrency thread-safe database storage.
+- ✅ **Telegram Notifications** — Instant real-time alerts sent to your mobile device.
+- ✅ **Setup Wizard** — Interactive CLI setup storing settings under `~/.archangel/`.
+- ✅ **Doctor Diagnostics** — Automated 8-pillar health check command (`archangel doctor`).
 
 ---
 
-# Web Scraping Engine
+## Architecture
 
-Archangel implements a unified multi-engine scraping interface to scrape external resources quickly and reliably:
-- **Scrapling**: The primary high-performance HTTP engine for fast, static page retrievals and stealthy request fetches.
-- **Obscura**: A fallback Rust/V8-based headless browser engine used automatically for JS-heavy web pages or when fast HTTP fetches fail.
+Archangel uses a decoupled, event-driven architecture where specialized agents communicate strictly via an internal `EventBus`:
 
----
-
-# Future
-
-- AI Outreach Agent
-- Dashboard
-- Analytics
-- Team Collaboration
-- Memory
-- Cloud Deployment
-- More Sources
-- Better Scoring
-- Plugin Marketplace
-
----
-
-# Engineering Principles
-
-- Event-driven architecture
-- Modular components
-- One responsibility per agent
-- Replaceable modules
-- AI-friendly documentation
-- CLI-first workflow
-- Minimal coupling
-- Maximum observability
+```text
+Workers (Reddit / X / GitHub / RSS)
+                ↓
+         Discovery Queue
+                ↓
+    Token-Free Qualification (0 Tokens)
+                ↓
+      SQLite Raw Post Storage
+                ↓
+   Enrichment Queue (9 Engines)
+                ↓
+  Canonical CRM Lead Generation
+                ↓
+   Logger & Telegram Notifications
+```
 
 ---
 
-# The Vision
+## Project Structure
 
-The Archangel is not intended to become "the best Telegram scraper."
-
-It is intended to become a reusable intelligence platform capable of discovering opportunities anywhere on the internet.
-
-If tomorrow a new platform appears, adding support should mean writing one plugin—not rewriting the engine.
-
-The engine should remain stable while collectors, AI models, storage backends, notification channels, and export evolve independently.
-
-Every design decision should move the project closer to that goal.
+```text
+archangel/
+├── agents/        # Autonomous swarm workers, orchestrators, and token-free filters.
+├── enrichment/    # Company profiling, tech fingerprinting, and pitch generation engines.
+├── intent/        # Gemini AI Studio prompt expansion and heuristic buying-intent generators.
+├── memory/        # User profile memory and you.txt rule enforcement.
+├── storage/       # SQLite WAL mode storage backend and schema migrations.
+├── config/        # Thread-safe persistent configuration manager for ~/.archangel/.
+└── cli/           # Rich console commands, REPL interface, setup wizard, and doctor.
+```
 
 ---
 
-*"Opportunity is revealed to those who seek."*
+## Example Lead Report
 
-**⚔️ The Archangel**
+```text
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #00001 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #00001
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-26 16:17:40 UTC
+
+[2. COMPANY PROFILE]
+Company Name: Weworkremotely
+Target Domain: weworkremotely.com
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: rss_publisher
+Primary Email: N/A
+Social Handles: linkedin: datadog
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: weworkremotely.com
+Post URL: https://weworkremotely.com/remote-jobs/datadog-partner-manager-channels
+Platform/Source: rss (Channel: rss)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Laravel, Tailwind CSS, Bootstrap
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: 80/100
+Response Speed (TTFB): 1708ms
+SSL Status: HTTPS Enabled
+SEO / Social Tags: Optimized
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Sales, Marketing, Infrastructure, AI, DevOps
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: AI Chatbot, Full Stack SaaS MVP, Website Optimization
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 20%
+
+[12. LEAD SCORING]
+Overall Score: 98.0 / 100.0
+Priority Tier: HIGH
+Filter Confidence: 0.98
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Noticed Weworkremotely is built on AWS/Cloud."
+Value Proposition: "We have deep expertise in AWS/Cloud and help teams scale rapidly."
+Call to Action: "Would you be open to a quick 10-minute chat this week?"
+
+[14. RAW POST MESSAGE]
+"""
+Datadog: Partner Manager - Channels
+We are looking for an experienced Channel & Alliances sales professional...
+"""
+
+==================================================
+END CRM LEAD REPORT #00001
+==================================================
+```
+
+---
+
+## Core Design Principles
+
+1. **Intelligence over Collection** — Collecting data is easy; understanding data is valuable. Every post is analyzed and enriched before reaching the user.
+2. **Modular Architecture** — Every component (storage, AI models, scrapers, notification channels) is fully decoupled and replaceable.
+3. **One Agent = One Responsibility** — Single responsibility principle across collectors, scorers, enrichers, and loggers.
+4. **Event-Driven Communication** — Subsystems never invoke each other directly; they publish and subscribe through an asynchronous `EventBus`.
+5. **Token Efficiency** — 100% token-free local regex filtering eliminates LLM costs during initial post scanning.
+6. **Graceful Degradation** — If AI API keys or external services go offline, deterministic heuristic engines take over without crashing.
+
+---
+
+## Roadmap
+
+### V1.3 (Current Release)
+- [x] AI Intent Expansion Engine (25+ queries default)
+- [x] Interactive Setup Wizard (`archangel setup`)
+- [x] Async Event-Driven Storage & Enrichment Pipeline
+- [x] Full 14-Section CRM Intelligence Reports
+- [x] System Diagnostics Doctor (`archangel doctor`)
+
+### V1.4 & Future
+- [ ] Live Deep Website Crawling
+- [ ] Redis High-Performance Cache Layer
+- [ ] Company Knowledge Graph & Entity Linking
+- [ ] Web-based Visual Dashboard (Next.js)
+
+---
+
+## Contributing
+
+Contributions are welcome! Please follow these steps:
+1. Fork the repository (`https://github.com/Thanki-Daksh/Archangel.git`).
+2. Create a feature branch (`git checkout -b feature/amazing-feature`).
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`).
+4. Push to the branch (`git push origin feature/amazing-feature`).
+5. Open a Pull Request.
+
+---
+
+## License
+
+Distributed under the MIT License. See `LICENSE` for more information.
