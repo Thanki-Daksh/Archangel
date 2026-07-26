@@ -683,27 +683,6 @@ def cmd_clear(console: Console) -> bool:
     return True
 
 
-def cmd_automate(console: Console, task: str, dry_run: bool = False, max_steps: int = 50) -> bool:
-    """Run autonomous GUI automation."""
-    try:
-        from archangel.plugins.gui_control import GUIAgent
-    except ImportError as exc:
-        _print_error_panel(
-            console,
-            what="GUI Control plugin not available.",
-            why=str(exc),
-            suggestions=[
-                "Ensure archangel/plugins/gui_control/ exists.",
-                "Run 'pip install -e .' to register the plugin.",
-            ],
-        )
-        return False
-
-    agent = GUIAgent()
-    result = agent.run(task=task, max_steps=max_steps, dry_run=dry_run)
-    console.print(f"\n[bold green]Result:[/] {result}")
-    return True
-
 
 def cmd_registry_list(console: Console, enabled: bool = False, disabled: bool = False, category: str | None = None) -> bool:
     """Display installed plugins."""
@@ -817,3 +796,54 @@ def cmd_start_telegram(console: Console) -> bool:
             ],
         )
         return False
+
+def cmd_help_detailed(console: Console) -> bool:
+    console.print()
+    console.print(Panel.fit("[bold cyan]⚔ Archangel — Detailed Command & Agent Reference Manual[/]", border_style="cyan"))
+    help_text = """\
+[bold yellow]STARTUP & CONTROL COMMANDS[/]
+  [bold green]archangel summon[/] (or plain [bold green]archangel[/])
+    Summons and initializes the platform core engine, event bus, database, loggers,
+    and agent subsystems. (Note: Telegram bridge is NOT auto-started).
+  [bold green]start telegram[/] (or [bold green]archangel start telegram[/] / [bold green]telegram start[/] / [bold green]archangel start-telegram[/])
+    Starts the interactive Telegram remote operations bridge on demand. Checks if the bridge
+    is already running in another terminal window/process and notifies you if active.
+  [bold green]archangel terminate[/] (or [bold green]exit[/] / [bold green]quit[/] in REPL)
+    Gracefully stops background tasks, flushes database queues, and terminates.
+
+[bold yellow]OPERATION & DIAGNOSTIC COMMANDS[/]
+  [bold green]archangel status[/] [--json]
+    Displays real-time status of runtime engine, storage database count, and agent states.
+  [bold green]archangel scan[/]
+    Executes a high-speed one-time scan across all configured sources (Reddit, X, RSS, etc.),
+    runs parallel AI analysis, scores leads, and persists results.
+  [bold green]archangel doctor[/]
+    Runs system diagnostics on dependencies, API keys, storage, and plugin permissions.
+  [bold green]archangel config[/] [edit | validate]
+    Inspects, validates, or opens user YAML configuration files in your editor.
+  [bold green]archangel export[/] [--format csv|json|md, --output PATH, --limit N]
+    Exports identified leads to external files.
+  [bold green]archangel logs[/] [--tail N, --follow]
+    Views live runtime log files.
+  [bold green]archangel purge[/] [--yes]
+    Cleans local temporary cache artifacts while preserving user data.
+  [bold green]help detailed[/] (or [bold green]archangel --help detailed[/] / [bold green]archangel help detailed[/])
+    Displays this full detailed reference manual.
+
+[bold yellow]AGENT SUBSYSTEM DIRECTIVES (archangel.<agent>)[/]
+You can speak to or query specific agent subsystems directly in CLI or REPL mode:
+  [bold cyan]archangel.collector[/]   (or [bold cyan]collector[/])    - Query or run collector data discovery
+  [bold cyan]archangel.intelligence[/] (or [bold cyan]intelligence[/]) - Directly query AI reasoning engine
+  [bold cyan]archangel.scoring[/]      (or [bold cyan]scoring[/])      - Inspect lead ranking metrics & rules
+  [bold cyan]archangel.guardian[/]     (or [bold cyan]guardian[/])     - View detailed component health metrics
+  [bold cyan]archangel.commander[/]    (or [bold cyan]commander[/])    - Inspect orchestrator registered states
+  [bold cyan]archangel.storage[/]      (or [bold cyan]storage[/])      - Query SQLite database lead counts
+  [bold cyan]archangel.notification[/]  (or [bold cyan]notification[/]) - Inspect message delivery status
+
+[bold yellow]EXAMPLES[/]
+  $ archangel start telegram
+  $ archangel.intelligence "Need Python automation developer for scraping project"
+  $ archangel help detailed
+"""
+    console.print(help_text)
+    return True

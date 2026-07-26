@@ -188,23 +188,6 @@ class WebSearch:
             return f"Search failed: {exc}"
 
 
-class ScreenCapture:
-    """Capture the user's screen and return a base64-encoded image."""
-
-    @staticmethod
-    def capture() -> str:
-        """Take a screenshot, resize to 1024x576 JPEG, return base64."""
-        try:
-            import pyautogui
-            screenshot = pyautogui.screenshot()
-            screenshot = screenshot.resize((1024, 576))
-            buffer = io.BytesIO()
-            screenshot.save(buffer, format="JPEG", quality=50)
-            return base64.b64encode(buffer.getvalue()).decode("utf-8")
-        except Exception as exc:
-            return f"[ERROR] Screenshot failed: {exc}"
-
-
 # ---------------------------------------------------------------------------
 # LLMClient
 # ---------------------------------------------------------------------------
@@ -385,72 +368,3 @@ def extract_search_queries(text: str) -> list[str]:
     return [block.strip() for block in SEARCH_RE.findall(text)]
 
 
-SCREENSHOT_RE = re.compile(r"<screenshot></screenshot>", re.DOTALL)
-
-# Fallback: catch wrong formats like  or <screenshot></screenshot>
-_SCREENSHOT_FALLBACK_RE = re.compile(
-    r"<tool>\s*(?:\[thinking\].*?</thinking>\s*)?\[screenshot\]\s*</tool>|<screenshot>|<screenshot></screenshot>",
-    re.IGNORECASE | re.DOTALL,
-)
-
-
-def extract_screenshot_requests(text: str) -> list[str]:
-    """Return all screenshot requests found in text (correct or fallback formats)."""
-    # Try correct format first
-    results = SCREENSHOT_RE.findall(text)
-    if results:
-        return [block.strip() for block in results]
-    # Fallback: catch wrong formats
-    return [block.strip() for block in _SCREENSHOT_FALLBACK_RE.findall(text)]
-
-
-AUTOMATE_RE = re.compile(r"<automate>(.*?)</automate>", re.DOTALL)
-
-# Fallback: catch wrong formats like  or <pyautogui_call>
-_AUTOMATE_FALLBACK_RE = re.compile(
-    r"<tool>\s*(?:\[thinking\].*?</thinking>\s*)?\[([^\]]+)\]\s*</tool>|<pyautogui_call>(.*?)</pyautogui_call>",
-    re.IGNORECASE | re.DOTALL,
-)
-
-
-def extract_automate_requests(text: str) -> list[str]:
-    """Return all <automate>...</automate> blocks found in text (correct or fallback formats)."""
-    # Try correct format first
-    results = AUTOMATE_RE.findall(text)
-    if results:
-        return [block.strip() for block in results]
-    # Fallback: catch wrong formats (exclude screenshot matches)
-    fallback = _AUTOMATE_FALLBACK_RE.findall(text)
-    results = []
-    for command_name, pyautogui_content in fallback:
-        content = command_name or pyautogui_content
-        if content and content.strip().lower() != "screenshot":
-            results.append(content.strip())
-    return results
-
-
-class Automator:
-    """Run autonomous GUI automation via the gui_control plugin."""
-
-    @staticmethod
-    def run(task: str, max_steps: int = 50, dry_run: bool = False) -> str:
-        """Execute a GUI automation task using the gui_control plugin.
-
-        Args:
-            task: Natural-language task description.
-            max_steps: Maximum actions to attempt.
-            dry_run: If True, print actions without executing.
-
-        Returns:
-            Summary string with result.
-        """
-        try:
-            from archangel.plugins.gui_control import GUIAgent
-        except ImportError:
-            return (
-                "GUI control plugin not available. "
-                "Ensure archangel/plugins/gui_control/ exists."
-            )
-
-        agent = GUIAgent()
-        return agent.run(task=task, max_steps=max_steps, dry_run=dry_run, bootstrap=True)

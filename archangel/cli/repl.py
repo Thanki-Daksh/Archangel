@@ -157,3 +157,194 @@ def create_prompt_session(
         return PromptSession(prompt_str, **kwargs)
     except Exception:
         return None
+
+import os
+import sys
+import time
+from rich.console import Console
+from archangel.cli.parser import _execute_repl_command
+from archangel.cli.handlers import cmd_terminate
+
+DATA_DIR = Path("data")
+SHUTDOWN_SENTINEL = DATA_DIR / ".archangel_shutdown"
+PID_FILE = DATA_DIR / ".archangel_pid"
+REPL_HISTORY = Path.home() / ".archangel_history"
+REPL_COMMANDS = [
+    "status", "watch", "scan", "doctor", "config",
+    "export", "logs", "purge", "update", "version",
+    "registry", "chat", "automate", "clear", "help", "exit", "quit"
+]
+
+def _countdown_or_second_ctrl_c(console: Console, seconds: float = 3.0) -> bool:
+    """Display a smooth ticking countdown updating every 0.1s.
+    Returns True if Ctrl+C was pressed during the countdown (force exit)."""
+    try:
+        remaining = seconds
+        while remaining > 0:
+            print(f"\rForce exit in: {remaining:.1f}s   ", end="", flush=True)
+            sleep_step = min(0.1, remaining)
+            time.sleep(sleep_step)
+            remaining -= sleep_step
+        print("\r" + " " * 30 + "\r", end="", flush=True)
+        return False
+    except KeyboardInterrupt:
+        # Clear the countdown line so only the exit message shows
+        print("\r" + " " * 30 + "\r", end="", flush=True)
+        return True
+
+_COMMAND_FLAGS: dict[str, list[str]] = {
+    "status":       ["--json"],
+    "watch":        [],
+    "scan":         [],
+    "doctor":       [],
+    "config":       ["edit", "validate"],
+    "export":       ["--format", "--output", "-o", "--limit"],
+    "logs":         ["--tail", "-t", "--follow", "-f", "--level"],
+    "purge":        ["--yes"],
+    "update":       [],
+    "version":      [],
+    "registry":     [],
+    "automate":     ["--dry-run", "--max-steps"],
+    "chat":         [],
+    "clear":        [],
+    "help":         [],
+    "exit":         [],
+    "quit":         [],
+}
+
+class _ArchangelCompleter:
+    def get_completions(self, document, complete_event):
+        try:
+            from prompt_toolkit.completion import Completion
+            text = document.text_before_cursor
+            words = text.split()
+            if not words:
+                for cmd in sorted(REPL_COMMANDS):
+                    yield Completion(cmd, start_position=0)
+                return
+            if len(words) == 1 and not text.endswith(" "):
+                prefix = words[0]
+                for cmd in sorted(REPL_COMMANDS):
+                    if cmd.startswith(prefix):
+                        yield Completion(cmd, start_position=-len(prefix))
+                return
+            if text.endswith(" "):
+                cmd = words[0].lower()
+                for flag in _COMMAND_FLAGS.get(cmd, []):
+                    yield Completion(flag, start_position=0)
+                return
+        except Exception:
+            pass
+        return
+
+def _run_simple_repl(console: Console) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    PID_FILE.write_text(str(os.getpid()))
+    SHUTDOWN_SENTINEL.unlink(missing_ok=True)
+    _repl_down = False
+    _last_ctrl_c: float = 0.0
+    _DOUBLE_CTRL_C_WINDOW = 3.0
+    while not _repl_down:
+        if SHUTDOWN_SENTINEL.exists():
+            console.print("\n[yellow]Shutdown requested from external process.[/]")
+            cmd_terminate(console)
+            break
+        try:
+            raw = input("archangel.main> ")
+        except EOFError:
+            console.print()
+            break
+        except KeyboardInterrupt:
+            now = time.time()
+            if now - _last_ctrl_c < _DOUBLE_CTRL_C_WINDOW:
+                console.print("\n[red]Forced exit.[/]")
+                break
+            _last_ctrl_c = now
+            if _countdown_or_second_ctrl_c(console):
+                console.print("\n[red]Forced exit.[/]")
+                break
+            continue
+        raw = raw.strip()
+        if not raw:
+            continue
+        for _segment in raw.split("&&"):
+            _keep_going = _execute_repl_command(console, _segment)
+            if not _keep_going:
+                _repl_down = True
+                break
+        if _repl_down:
+            break
+    PID_FILE.unlink(missing_ok=True)
+    SHUTDOWN_SENTINEL.unlink(missing_ok=True)
+
+def run_repl(console: Console) -> None:
+    if not sys.stdin.isatty():
+        console.print("[yellow]Interactive terminal required. Run [bold]archangel summon[/] in cmd.exe or PowerShell.[/]")
+        return
+    try:
+        import msvcrt
+        msvcrt.get_osfhandle(sys.stdin.fileno())
+    except (ImportError, OSError, AttributeError):
+        _run_simple_repl(console)
+        return
+
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    PID_FILE.write_text(str(os.getpid()))
+    SHUTDOWN_SENTINEL.unlink(missing_ok=True)
+
+    _old_term = os.environ.pop("TERM", None)
+    try:
+        REPL_HISTORY.parent.mkdir(parents=True, exist_ok=True)
+        completer = _ArchangelCompleter()
+        session = create_prompt_session(
+            "archangel.main> ",
+            ".archangel_repl_history",
+            completer=completer,
+            complete_while_typing=False,
+        )
+
+        _repl_down = False
+        _last_ctrl_c: float = 0.0
+        _DOUBLE_CTRL_C_WINDOW = 3.0
+
+        while not _repl_down:
+            if SHUTDOWN_SENTINEL.exists():
+                console.print("\n[yellow]Shutdown requested from external process.[/]")
+                cmd_terminate(console)
+                break
+            try:
+                raw = session.prompt()
+            except KeyboardInterrupt:
+                now = time.time()
+                if now - _last_ctrl_c < _DOUBLE_CTRL_C_WINDOW:
+                    console.print("\n[red]Forced exit.[/]")
+                    _repl_down = True
+                    break
+                _last_ctrl_c = now
+                if _countdown_or_second_ctrl_c(console):
+                    console.print("\n[red]Forced exit.[/]")
+                    _repl_down = True
+                    break
+                continue
+            except Exception as pt_exc:
+                console.print(f"\n[yellow]prompt_toolkit error: {pt_exc}[/]")
+                console.print("[yellow]Falling back to simple input mode.[/]")
+                _run_simple_repl(console)
+                return
+
+            raw = raw.strip()
+            if not raw:
+                continue
+
+            for _segment in raw.split("&&"):
+                _keep_going = _execute_repl_command(console, _segment)
+                if not _keep_going:
+                    _repl_down = True
+                    break
+            if _repl_down:
+                break
+    finally:
+        PID_FILE.unlink(missing_ok=True)
+        SHUTDOWN_SENTINEL.unlink(missing_ok=True)
+        if _old_term is not None:
+            os.environ["TERM"] = _old_term
