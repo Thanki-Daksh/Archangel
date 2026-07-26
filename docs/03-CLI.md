@@ -463,7 +463,7 @@ Example
 
 ```
 The Archangel
-Version       1.0.0
+Version       1.3.0
 Python        3.x
 Build         Release
 ```

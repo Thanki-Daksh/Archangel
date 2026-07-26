@@ -1,7 +1,7 @@
 [project]
 name = "archangel"
-version = "0.1.0"
-description = "Autonomous AI-powered lead intelligence platform"
+version = "1.3.0"
+description = "Autonomous AI-powered lead intelligence platform V1.3"
 authors = [
     { name = "Daksh Thanki" },
 ]

@@ -1,4 +1,4 @@
-# ⚔ The Archangel
+# ⚔ The Archangel V1.3
 
 > *An autonomous, AI-powered lead intelligence platform built around specialized agents.*
 
