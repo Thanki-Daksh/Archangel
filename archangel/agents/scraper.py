@@ -275,7 +275,6 @@ class SmartScraper:
 
     def fetch_reddit_rss(self, url: str, timeout: int = 15) -> str:
         """Fetch Reddit content via RSS feed (bypasses anti-bot)."""
-        import re
 
         # Convert Reddit URL to RSS
         # https://www.reddit.com/r/Discord_Bots/comments/abc123/title/
@@ -571,7 +570,7 @@ class SmartScraper:
         import urllib.parse
         import time
         import re
-        from datetime import datetime, timezone
+        from datetime import datetime
         from bs4 import BeautifulSoup
 
         cutoff = time.time() - (freshness_days * 86400)

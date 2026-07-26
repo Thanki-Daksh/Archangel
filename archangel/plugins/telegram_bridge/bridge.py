@@ -10,7 +10,6 @@ from archangel.agents.chat import (
     extract_search_queries,
 )
 from .auth import is_authorized
-from archangel.agents.scraper import SmartScraper
 from archangel.agents.monitor import SiteMonitor
 
 logger = logging.getLogger(__name__)

@@ -1,6 +1,5 @@
 """Unit tests for PluginLoader manifest scanning and safe execution fault isolation."""
 
-import pytest
 from archangel.plugins import PluginLoader
 
 

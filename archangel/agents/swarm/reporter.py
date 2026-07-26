@@ -173,7 +173,7 @@ class TelegramSwarmReporter:
         hist_str = f"Seen {past_mentions} times before" if past_mentions > 0 else "First time seen"
         
         revenue = report_data.get("revenue_estimate", {})
-        budget = revenue.get("estimated_budget", 0)
+        revenue.get("estimated_budget", 0)
         arr = revenue.get("estimated_arr_range", "Unknown")
         
         pitch = report_data.get("recommended_pitch", {})

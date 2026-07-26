@@ -1,14 +1,11 @@
 """Unit tests for 24/7 Agent Swarm subsystem."""
 
 import pytest
-import asyncio
 from pathlib import Path
 from archangel.memory.profile import UserProfileMemory
 from archangel.agents.swarm.filter import TokenFreeFilter
 from archangel.agents.swarm.registry import PlatformRegistry
 from archangel.agents.swarm.logger import SwarmFileWriter, format_lead_block
-from archangel.agents.swarm.pipeline import StoragePipeline
-from archangel.agents.swarm.pool import SwarmPool
 from archangel.agents.swarm.manager import SwarmManager, parse_duration_seconds
 from archangel.models import RawPost
 

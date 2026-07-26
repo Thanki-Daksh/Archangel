@@ -1,5 +1,4 @@
-import pytest
-from archangel.agents.groupchat import GroupChatEngine, AGENT_ROLES
+from archangel.agents.groupchat import GroupChatEngine
 
 
 def test_groupchat_engine_init():

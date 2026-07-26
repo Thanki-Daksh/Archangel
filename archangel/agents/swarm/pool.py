@@ -2,9 +2,9 @@
 
 import asyncio
 import logging
-from typing import List, Optional
+from typing import List
 from archangel.models import RawPost
-from archangel.agents.swarm.registry import SwarmTarget, PlatformRegistry
+from archangel.agents.swarm.registry import SwarmTarget
 from archangel.agents.swarm.pipeline import StoragePipeline
 from archangel.agents.swarm.workers.base import BasePlatformWorker
 from archangel.agents.swarm.workers.reddit_worker import RedditWorker

@@ -1,5 +1,3 @@
-import pytest
-from pathlib import Path
 from archangel.events import EventBus
 from archangel.models import RawPost
 from archangel.storage import StorageBackend
@@ -57,7 +55,7 @@ def test_vault_agent_event_flow(tmp_path):
     bus = EventBus()
     storage = StorageBackend(db_path=tmp_path / "test_vault.db")
     builder = VaultBuilder(vault_dir=vault_dir)
-    agent = VaultAgent(event_bus=bus, storage=storage, builder=builder)
+    VaultAgent(event_bus=bus, storage=storage, builder=builder)
 
     post = RawPost(source="reddit", author="startup_founder", content="Hiring Python engineer", url="http://reddit.com/job5")
     post_id = storage.store_raw_post(post)

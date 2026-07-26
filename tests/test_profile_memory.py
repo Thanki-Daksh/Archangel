@@ -1,6 +1,5 @@
 """Unit tests for UserProfileMemory engine and you.txt bullet parsing."""
 
-import pytest
 from pathlib import Path
 from archangel.memory.profile import UserProfileMemory
 from archangel.models import LeadAnalysis

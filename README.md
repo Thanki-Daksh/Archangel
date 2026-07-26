@@ -25,6 +25,8 @@ Understand
     ↓
 Score
     ↓
+Enrich
+    ↓
 Notify
 ```
 
@@ -103,6 +105,18 @@ Storage
 
 ↓
 
+LeadStoredEvent
+
+↓
+
+Enrichment
+
+↓
+
+LeadEnrichedEvent
+
+↓
+
 Notification
 ```
 
@@ -144,6 +158,12 @@ The documentation, architecture, and repository are designed so another AI can u
       └──────┐  ┌────┘
              ▼  ▼
           Scoring
+              │
+              ▼
+           Storage
+              │
+              ▼
+         Enrichment
               │
               ▼
        Notification
@@ -277,6 +297,26 @@ Stores
 - History
 
 No other agent writes directly to the database.
+
+---
+
+## Enrichment
+
+Asynchronous background analysis.
+
+Performs
+
+- Website Fingerprinting
+- AI Readiness detection
+- Revenue/ARR estimation
+- Pitch Generation
+- Competition Analysis
+
+Produces
+
+```
+LeadEnrichedEvent
+```
 
 ---
 
@@ -649,6 +689,10 @@ Score
 ↓
 
 Storage
+
+↓
+
+Enrichment
 
 ↓
 

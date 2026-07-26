@@ -1,4 +1,3 @@
-import pytest
 from archangel.revenue.tracker import RevenueTracker
 from archangel.storage import StorageBackend
 

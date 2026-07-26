@@ -3,12 +3,8 @@
 import asyncio
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-from archangel.agents.swarm.filter import TokenFreeFilter
 from archangel.agents.swarm.pipeline import (
-    BatchWriter,
-    LeadProcessor,
     StorageMetrics,
     StoragePipeline,
 )
@@ -96,7 +92,7 @@ async def test_pipeline_graceful_shutdown(tmp_path: Path):
     await asyncio.sleep(1.0)
     await pipeline.stop()
 
-    content = out_file.read_text(encoding="utf-8") if out_file.exists() else ""
+    out_file.read_text(encoding="utf-8") if out_file.exists() else ""
     # At least some leads should have been persisted
     assert pipeline.writer.total_flushed + pipeline.writer.total_failed >= 0
 

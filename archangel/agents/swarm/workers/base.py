@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List
 from archangel.models import RawPost
 from archangel.agents.swarm.registry import SwarmTarget
 

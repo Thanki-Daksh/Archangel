@@ -4,7 +4,7 @@ Analyzes text to detect AI framework adoption and classifies maturity.
 """
 
 import re
-from typing import Dict, List, Tuple
+from typing import List
 from dataclasses import dataclass, asdict
 
 @dataclass

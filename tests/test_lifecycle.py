@@ -1,4 +1,3 @@
-import pytest
 from archangel.events import EventBus
 from archangel.lifecycle.agent import LifecycleAgent
 from archangel.lifecycle.engine import LifecycleEngine

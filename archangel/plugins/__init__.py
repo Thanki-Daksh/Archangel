@@ -44,7 +44,7 @@ class PluginLoader:
                     logger.warning("Manifest '%s' is not a dict; skipping.", manifest_path)
                     continue
 
-                plugin_name = data.get("name", entry.name)
+                data.get("name", entry.name)
                 data["id"] = data.get("id", entry.name)
                 data["dir"] = str(entry)
                 data["status"] = data.get("status", "enabled")

@@ -1,4 +1,3 @@
-import pytest
 from archangel.analytics.engine import AnalyticsEngine
 from archangel.models import RawPost
 from archangel.storage import StorageBackend

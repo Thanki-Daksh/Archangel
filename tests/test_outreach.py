@@ -1,4 +1,3 @@
-import pytest
 from archangel.events import EventBus
 from archangel.models import RawPost, LeadAnalysis
 from archangel.outreach.agent import OutreachAgent
@@ -30,7 +29,7 @@ def test_outreach_engine_drafts():
 def test_outreach_agent_event_flow(tmp_path):
     bus = EventBus()
     storage = StorageBackend(db_path=tmp_path / "test_outreach.db")
-    agent = OutreachAgent(event_bus=bus, storage=storage)
+    OutreachAgent(event_bus=bus, storage=storage)
 
     post = RawPost(source="discord", author="client_x", content="Need React dev", url="http://discord.gg/1")
     post_id = storage.store_raw_post(post)

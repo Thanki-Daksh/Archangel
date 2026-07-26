@@ -7,7 +7,7 @@ from archangel.storage import StorageBackend
 def test_deduplication_agent_event_flow(tmp_path):
     bus = EventBus()
     storage = StorageBackend(db_path=tmp_path / "test.db")
-    agent = DeduplicationAgent(event_bus=bus, storage=storage)
+    DeduplicationAgent(event_bus=bus, storage=storage)
 
     p1 = RawPost(
         source="reddit",

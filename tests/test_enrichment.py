@@ -1,4 +1,3 @@
-import pytest
 from archangel.enrichment.agent import EnrichmentAgent
 from archangel.enrichment.engine import EnrichmentEngine
 from archangel.events import EventBus
@@ -26,7 +25,7 @@ def test_enrichment_engine():
 def test_enrichment_agent_and_storage(tmp_path):
     bus = EventBus()
     storage = StorageBackend(db_path=tmp_path / "test_enrichment.db")
-    agent = EnrichmentAgent(event_bus=bus, storage=storage)
+    EnrichmentAgent(event_bus=bus, storage=storage)
 
     post = RawPost(
         source="discord",

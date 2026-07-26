@@ -33,7 +33,7 @@ class VaultAgent:
 
     def _on_lead_merged(self, payload: dict) -> None:
         canonical_lead_id = payload.get("canonical_lead_id")
-        merged_post_id = payload.get("merged_post_id")
+        payload.get("merged_post_id")
         if canonical_lead_id:
             self._sync_lead_note(canonical_lead_id)
 

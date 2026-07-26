@@ -1,4 +1,3 @@
-import pytest
 from archangel.events import EventBus
 from archangel.notifications.batching import BatchingAgent
 

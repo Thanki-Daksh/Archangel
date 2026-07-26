@@ -52,9 +52,14 @@ Every stage should improve the quality of the information before passing it to t
                       │
              LeadStoredEvent
                       │
-          ┌───────────┴───────────┐
-          ▼                       ▼
- Notification Agent        Export Agent
+                      ▼
+            Enrichment Agent
+                      │
+            LeadEnrichedEvent
+                      │
+           ┌───────────┴───────────┐
+           ▼                       ▼
+  Notification Agent        Export Agent
           │
           ▼
          User
@@ -283,7 +288,35 @@ LeadStoredEvent
 
 ---
 
-# Stage 5 — Notification
+# Stage 5 — Enrichment
+
+Responsible Agent
+
+```
+Enrichment Agent
+```
+
+Purpose
+
+Perform heavy, network-intensive operations to enrich the opportunity without blocking collector agents.
+
+Performs:
+
+- Website Fingerprinting (technology stack detection)
+- AI Readiness classification
+- Revenue and ARR Estimation
+- Pitch Generation (synthesis of proposal)
+- Competitor Analysis
+
+Output
+
+```
+LeadEnrichedEvent
+```
+
+---
+
+# Stage 6 — Notification
 
 Responsible Agent
 
@@ -312,7 +345,7 @@ LeadDeliveredEvent
 
 ---
 
-# Stage 6 — Export
+# Stage 7 — Export
 
 Responsible Agent
 
@@ -373,6 +406,14 @@ Storage
 ↓
 
 LeadStoredEvent
+
+↓
+
+Enrichment
+
+↓
+
+LeadEnrichedEvent
 
 ↓
 
@@ -516,6 +557,10 @@ Storage Queue
 
 ↓
 
+Enrichment Queue
+
+↓
+
 Notification Queue
 ```
 
@@ -594,35 +639,41 @@ Storage only persists.
 
 ## Rule 5
 
-Notifications only deliver.
+Enrichment performs heavy background analysis.
 
 ---
 
 ## Rule 6
 
-Exports only transform stored data.
+Notifications only deliver.
 
 ---
 
 ## Rule 7
 
-Every stage communicates through events.
+Exports only transform stored data.
 
 ---
 
 ## Rule 8
 
-No stage should bypass another stage.
+Every stage communicates through events.
 
 ---
 
 ## Rule 9
 
-Every event should have a well-defined schema.
+No stage should bypass another stage.
 
 ---
 
 ## Rule 10
+
+Every event should have a well-defined schema.
+
+---
+
+## Rule 11
 
 Every stage should be independently testable.
 

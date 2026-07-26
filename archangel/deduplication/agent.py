@@ -5,7 +5,6 @@ from typing import Optional
 
 from archangel.deduplication.engine import DeduplicationEngine
 from archangel.events import EventBus
-from archangel.models import RawPost
 from archangel.storage import StorageBackend
 
 logger = logging.getLogger(__name__)

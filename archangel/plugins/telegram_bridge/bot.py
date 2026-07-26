@@ -373,7 +373,6 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Step 1-2: Search
         if site_filter == "reddit":
-            search_label = "Reddit"
             await status_msg.edit_text(f"{parse_log}\n\n🔍 Searching Reddit...")
             combined_content, item_count = _build_combined_content(
                 scraper, queries, alternatives, raw_query=raw_query
@@ -381,13 +380,11 @@ async def leads_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             combined_content = combined_content.replace("=== REDDIT POSTS ===", "=== REDDIT POSTS (site:reddit) ===", 1)
             combined_content = combined_content.replace("=== X/TWITTER POSTS ===", "", 1)
         elif site_filter == "x":
-            search_label = "X/Twitter"
             await status_msg.edit_text(f"{parse_log}\n\n🔍 Searching X/Twitter...")
             combined_content, item_count = _build_combined_content(
                 scraper, queries, alternatives
             )
         else:
-            search_label = "X/Twitter + Reddit"
             await status_msg.edit_text(f"{parse_log}\n\n🔍 Searching X/Twitter + Reddit...")
             combined_content, item_count = _build_combined_content(
                 scraper, queries, alternatives, raw_query=raw_query

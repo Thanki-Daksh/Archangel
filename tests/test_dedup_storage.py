@@ -1,4 +1,3 @@
-from pathlib import Path
 import pytest
 from archangel.models import RawPost
 from archangel.storage import StorageBackend

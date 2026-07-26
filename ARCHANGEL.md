@@ -112,9 +112,9 @@ Each layer has a clearly defined responsibility.
          ▼
      Event Bus
          │
- ┌───────┼────────────────────────────────────┐
- ▼       ▼         ▼         ▼        ▼       ▼
-Collectors Analysis Scoring Storage Notification Export
+ ┌───────┼─────────────────────────────────────────────┐
+ ▼       ▼         ▼         ▼          ▼          ▼         ▼
+Collectors Analysis Scoring Storage Enrichment Notification Export
 ```
 
 Every component is independent. Every component communicates through events.
@@ -168,6 +168,10 @@ Storage
     ↓
 LeadStoredEvent
     ↓
+Enrichment
+    ↓
+LeadEnrichedEvent
+    ↓
 Notification
     ↓
 LeadDeliveredEvent
@@ -182,7 +186,8 @@ Each stage only understands the event it receives.
 | RawPostEvent | Collector | Intelligence |
 | LeadAnalysisEvent | Intelligence | Scoring |
 | LeadScoredEvent | Scoring | Storage |
-| LeadStoredEvent | Storage | Notification |
+| LeadStoredEvent | Storage | Enrichment |
+| LeadEnrichedEvent | Enrichment | Notification |
 | LeadDeliveredEvent | Notification | — |
 | AgentStarted | Any Agent | Guardian |
 | AgentStopped | Any Agent | Guardian |
@@ -215,6 +220,12 @@ Each stage only understands the event it receives.
       └──────┐  ┌────┘
              ▼  ▼
           Scoring
+              │
+              ▼
+           Storage
+              │
+              ▼
+         Enrichment
               │
               ▼
        Notification
@@ -367,7 +378,29 @@ Store: Raw posts, Analysis, Scores, Metadata, Runtime history
 
 **Possible backends:** SQLite, JSON, PostgreSQL
 
+**Output:** LeadStoredEvent
+
 **FORBIDDEN:** Never performs AI analysis, sends notifications, or exports data.
+
+---
+
+## Enrichment Agent
+
+**Purpose:** Asynchronous heavy analysis. Runs after storage to ensure swarm collectors are never blocked.
+
+**Responsibilities:**
+
+- Website Fingerprinting
+- AI Readiness Detection
+- Revenue Estimation (ARR)
+- Pitch Generation
+- Competition Analysis
+
+**Input:** LeadStoredEvent
+
+**Output:** LeadEnrichedEvent
+
+**FORBIDDEN:** Never collects data, scores leads, or directly sends notifications.
 
 ---
 
@@ -379,7 +412,7 @@ Store: Raw posts, Analysis, Scores, Metadata, Runtime history
 
 Send notifications through: Telegram, Discord, Email, Desktop
 
-**Input:** LeadStoredEvent
+**Input:** LeadEnrichedEvent
 
 **Output:** LeadDeliveredEvent
 
@@ -441,9 +474,14 @@ Always requires explicit user approval before sending messages.
                       │
              LeadStoredEvent
                       │
-          ┌───────────┴───────────┐
-          ▼                       ▼
- Notification Agent        Export Agent
+                      ▼
+            Enrichment Agent
+                      │
+            LeadEnrichedEvent
+                      │
+           ┌───────────┴───────────┐
+           ▼                       ▼
+  Notification Agent        Export Agent
           │
           ▼
          User
@@ -457,8 +495,9 @@ Always requires explicit user approval before sending messages.
 | 2. Intelligence | Intelligence | RawPostEvent | LeadAnalysisEvent |
 | 3. Scoring | Scoring | LeadAnalysisEvent | LeadScoredEvent |
 | 4. Storage | Storage | LeadScoredEvent | LeadStoredEvent |
-| 5. Notification | Notification | LeadStoredEvent | LeadDeliveredEvent |
-| 6. Export | Export | Storage | CSV/JSON/MD/Excel |
+| 5. Enrichment | Enrichment | LeadStoredEvent | LeadEnrichedEvent |
+| 6. Notification | Notification | LeadEnrichedEvent | LeadDeliveredEvent |
+| 7. Export | Export | Storage | CSV/JSON/MD/Excel |
 
 ## Pipeline Rules
 
@@ -466,12 +505,13 @@ Always requires explicit user approval before sending messages.
 2. Intelligence only analyzes
 3. Scoring only ranks
 4. Storage only persists
-5. Notifications only deliver
-6. Exports only transform stored data
-7. Every stage communicates through events
-8. No stage should bypass another stage
-9. Every event should have a well-defined schema
-10. Every stage should be independently testable
+5. Enrichment handles heavy deterministic analysis (async)
+6. Notifications only deliver
+7. Exports only transform stored data
+8. Every stage communicates through events
+9. No stage should bypass another stage
+10. Every event should have a well-defined schema
+11. Every stage should be independently testable
 
 ## Raw Post Format
 

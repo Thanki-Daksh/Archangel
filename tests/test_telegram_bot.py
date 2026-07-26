@@ -1,7 +1,6 @@
 """Unit tests for TelegramSwarmBot commands and live telemetry dashboard."""
 
 import pytest
-import asyncio
 from archangel.notifications.telegram_bot import TelegramSwarmBot, render_telegram_dashboard
 from archangel.storage import StorageBackend
 

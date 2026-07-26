@@ -2,7 +2,7 @@
 
 import logging
 from collections import Counter
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional
 from archangel.storage import StorageBackend
 
 logger = logging.getLogger(__name__)

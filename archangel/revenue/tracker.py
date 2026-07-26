@@ -1,7 +1,7 @@
 """Revenue & ROI Tracker — calculates total earnings, average deal size, and platform ROI."""
 
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional
 from archangel.storage import StorageBackend
 
 logger = logging.getLogger(__name__)

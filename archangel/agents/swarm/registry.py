@@ -1,7 +1,7 @@
 """PlatformRegistry — Auto-resolving target mapper for platform short-names and user links."""
 
 import logging
-from typing import List, Dict, Any
+from typing import List
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)

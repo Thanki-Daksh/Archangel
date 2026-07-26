@@ -1,6 +1,5 @@
 """Unit tests for EventBus, GuardianAgent, and CommanderAgent."""
 
-import time
 import pytest
 from archangel.events import EventBus, GuardianAgent, CommanderAgent
 

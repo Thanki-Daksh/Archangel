@@ -71,7 +71,7 @@ class CollectorAgent:
         return posts
 
     def _collect_reddit(self, source: dict) -> list[RawPost]:
-        subreddits = source.get("subreddits", [])
+        source.get("subreddits", [])
         query = source.get("query", "help needed")
         posts_data = self.scraper.search_reddit(
             query,

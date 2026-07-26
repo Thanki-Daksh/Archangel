@@ -3,9 +3,8 @@
 Cross-references past leads to determine recurring intent and map company history.
 """
 
-from typing import Dict, Any, List
 from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from archangel.storage import StorageBackend
 
 @dataclass

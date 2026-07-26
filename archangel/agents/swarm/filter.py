@@ -1,7 +1,7 @@
 import re
 import time
 import logging
-from typing import Dict, Any, List, Set, Optional
+from typing import Dict, Any, Set, Optional
 from archangel.memory.profile import UserProfileMemory
 
 logger = logging.getLogger(__name__)

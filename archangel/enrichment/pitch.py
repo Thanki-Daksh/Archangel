@@ -3,7 +3,7 @@
 Generates highly personalized outreach angles based on extracted intelligence.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any
 from dataclasses import dataclass, asdict
 
 @dataclass

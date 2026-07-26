@@ -31,15 +31,15 @@ def main():
     bus = EventBus()
 
     # 2. Instantiate Agents
-    dedup_agent = DeduplicationAgent(event_bus=bus, storage=storage)
-    enrich_agent = EnrichmentAgent(event_bus=bus, storage=storage)
+    DeduplicationAgent(event_bus=bus, storage=storage)
+    EnrichmentAgent(event_bus=bus, storage=storage)
     lifecycle_agent = LifecycleAgent(event_bus=bus, storage=storage)
     scorer = AdaptiveScorer(storage=storage)
-    learning_agent = LearningAgent(event_bus=bus, storage=storage, scorer=scorer)
-    outreach_agent = OutreachAgent(event_bus=bus, storage=storage)
-    batching_agent = BatchingAgent(event_bus=bus, high_priority_threshold=80.0)
+    LearningAgent(event_bus=bus, storage=storage, scorer=scorer)
+    OutreachAgent(event_bus=bus, storage=storage)
+    BatchingAgent(event_bus=bus, high_priority_threshold=80.0)
     vault_builder = VaultBuilder(vault_dir=Path("data/demo_vault"))
-    vault_agent = VaultAgent(event_bus=bus, storage=storage, builder=vault_builder)
+    VaultAgent(event_bus=bus, storage=storage, builder=vault_builder)
     revenue_tracker = RevenueTracker(storage=storage)
     analytics_engine = AnalyticsEngine(storage=storage)
 

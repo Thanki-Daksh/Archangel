@@ -1,9 +1,7 @@
 """Discord Bot Lead Monitor for Archangel using official discord.py API."""
 
 import os
-import time
 import logging
-import asyncio
 import discord
 from archangel.storage import StorageBackend
 from archangel.models import RawPost, LeadAnalysis, LeadScore

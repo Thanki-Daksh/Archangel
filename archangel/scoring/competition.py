@@ -3,7 +3,6 @@
 Calculates outreach difficulty based on post saturation and accessibility.
 """
 
-from typing import Dict, Any
 from dataclasses import dataclass, asdict
 from archangel.models import RawPost
 

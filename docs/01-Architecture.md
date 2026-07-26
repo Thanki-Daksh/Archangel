@@ -39,9 +39,9 @@ No subsystem should directly manipulate another subsystem's internal state.
          ▼
      Event Bus
          │
- ┌───────┼────────────────────────────────────┐
- ▼       ▼         ▼         ▼        ▼       ▼
-Collectors Analysis Scoring Storage Notifications Export
+ ┌───────┼─────────────────────────────────────────────┐
+ ▼       ▼         ▼         ▼          ▼          ▼         ▼
+Collectors Analysis Scoring Storage Enrichment Notification Export
 ```
 
 Every component is independent.
@@ -167,6 +167,7 @@ Current agents
 - Intelligence
 - Scoring
 - Storage
+- Enrichment
 - Notification
 - Export
 
@@ -454,6 +455,14 @@ LeadStoredEvent
 
 ↓
 
+Enrichment
+
+↓
+
+LeadEnrichedEvent
+
+↓
+
 Notification
 
 ↓
@@ -575,9 +584,22 @@ The architecture should support
 - multiple collectors
 - multiple AI providers
 - multiple storage providers
+- heavy background enrichment
 - multiple notification systems
 
 without rewriting the engine.
+
+---
+
+# Asynchronous Swarm Queues
+
+Starting in V1.3, the architecture uses background queues for heavy processing.
+
+Collectors (Swarm Workers) run quickly and push discovered leads to a `discovery_queue`.
+
+Heavy operations (like website fingerprinting or AI readiness detection) run off the main event loop in the `EnrichmentProcessor` using worker threads.
+
+Collectors are **never** blocked by downstream network operations.
 
 ---
 

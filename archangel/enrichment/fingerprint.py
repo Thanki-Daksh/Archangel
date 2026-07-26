@@ -8,7 +8,6 @@ import time
 import urllib.request
 import urllib.error
 import ssl
-import re
 from typing import Dict, Any, List
 from dataclasses import dataclass, asdict
 

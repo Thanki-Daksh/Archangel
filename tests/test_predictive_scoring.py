@@ -1,4 +1,3 @@
-import pytest
 from archangel.events import EventBus
 from archangel.models import LeadAnalysis, RawPost
 from archangel.scoring.learning import AdaptiveScorer, LearningAgent
@@ -26,7 +25,7 @@ def test_learning_agent_feedback_loop(tmp_path):
     bus = EventBus()
     storage = StorageBackend(db_path=tmp_path / "test_learning.db")
     scorer = AdaptiveScorer(storage=storage)
-    agent = LearningAgent(event_bus=bus, storage=storage, scorer=scorer)
+    LearningAgent(event_bus=bus, storage=storage, scorer=scorer)
 
     post = RawPost(source="reddit", content="Need Python dev", url="http://reddit.com/dev")
     post_id = storage.store_raw_post(post)

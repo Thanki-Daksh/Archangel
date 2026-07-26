@@ -14,22 +14,18 @@ import os
 import re
 import sys
 import time
-import json
 import shlex
-import subprocess
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Optional
 
 import click
-import yaml
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
-from archangel import __version__
 from archangel.cli.banner import render_banner
 from archangel.cli import commands as _cli_commands
-from archangel.cli.commands import handle_slash_command, _ChatCompleter
+from archangel.cli.commands import _ChatCompleter
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -159,7 +155,6 @@ from archangel.cli.handlers import (
 from archangel.cli.repl import (
     AGENT_SYSTEM_PROMPTS,
     _classify_agent_topic,
-    get_archangel_keybindings,
     create_prompt_session as _create_prompt_session,
 )
 
@@ -711,14 +706,8 @@ def _execute_repl_command(console: Console, segment: str) -> bool:
     _cmd = _parts[0].lower()
     _args = _parts[1:]
 
-    def _flag(name: str) -> bool:
-        return f"--{name}" in _args
-
-    def _opt(name: str) -> str | None:
-        for i, a in enumerate(_args):
-            if a == f"--{name}" and i + 1 < len(_args):
-                return _args[i + 1]
-        return None
+    _flag = lambda n: f"--{n}" in _args
+    _opt = lambda n: _args[_args.index(f"--{n}") + 1] if f"--{n}" in _args and _args.index(f"--{n}") + 1 < len(_args) else None
 
     if _cmd in ("exit", "quit"):
         cmd_terminate(console)
@@ -1001,8 +990,6 @@ def run_repl(console: Console) -> None:
     # native Windows input/output path.
     _old_term = os.environ.pop("TERM", None)
     try:
-        from prompt_toolkit import PromptSession
-        from prompt_toolkit.history import FileHistory
 
         # Ensure history file's parent directory exists
         REPL_HISTORY.parent.mkdir(parents=True, exist_ok=True)

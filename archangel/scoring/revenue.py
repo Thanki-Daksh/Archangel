@@ -3,7 +3,6 @@
 Estimates buying power and budget sizing based on heuristics.
 """
 
-from typing import Dict, Any, Optional
 from dataclasses import dataclass, asdict
 
 @dataclass

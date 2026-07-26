@@ -8,9 +8,9 @@ import asyncio
 import logging
 import time
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import List, Optional
 
 from archangel.agents.swarm.filter import TokenFreeFilter
 from archangel.agents.swarm.logger import SwarmFileWriter, format_lead_block
@@ -258,7 +258,7 @@ class BatchWriter:
         batch_size = len(batch)
 
         posts = [item[0] for item in batch]
-        evaluations = [item[1] for item in batch]
+        [item[1] for item in batch]
 
         flush_start = time.monotonic()
 

@@ -85,6 +85,12 @@ Export
           Scoring
               │
               ▼
+           Storage
+              │
+              ▼
+         Enrichment
+              │
+              ▼
        Notification
               │
               ▼
@@ -460,6 +466,44 @@ Storage never
 
 ---
 
+# Enrichment Agent
+
+## Purpose
+
+Perform heavy, deterministic analysis after data is persisted, without blocking Collectors.
+
+---
+
+## Responsibilities
+
+Execute background enrichment tasks:
+
+- Website Fingerprinting (technology detection)
+- Revenue/Budget Estimation (ARR extraction)
+- Pitch Generation (synthesis of proposal)
+- Competition Analysis
+- AI Readiness detection
+
+---
+
+## Output
+
+```
+LeadEnrichedEvent
+```
+
+---
+
+## Forbidden
+
+Enrichment never:
+
+- Collects data from main sources
+- Ranks or scores leads
+- Sends notifications directly
+
+---
+
 # Notification Agent
 
 ## Purpose
@@ -482,7 +526,7 @@ Send notifications through
 ## Input
 
 ```
-LeadStoredEvent
+LeadEnrichedEvent
 ```
 
 ---
@@ -606,6 +650,10 @@ LeadScoredEvent
 ↓
 
 Storage
+
+↓
+
+Enrichment
 
 ↓
 

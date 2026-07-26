@@ -4,7 +4,6 @@ import logging
 import time
 from typing import List, Dict, Any, Optional
 from archangel.events import EventBus
-from archangel.models import RawPost, LeadScore
 
 logger = logging.getLogger(__name__)
 

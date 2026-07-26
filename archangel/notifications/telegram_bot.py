@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from pathlib import Path
 
 from archangel.agents.swarm.manager import SwarmManager
@@ -187,7 +187,7 @@ class TelegramSwarmBot:
                 metrics = self.get_status_metrics()
                 active = bool(self.swarm_manager and self.swarm_manager.is_running)
                 duration_str = self.swarm_manager.duration_str if self.swarm_manager else "N/A"
-                text = render_telegram_dashboard(metrics, elapsed, duration_str, active)
+                render_telegram_dashboard(metrics, elapsed, duration_str, active)
                 logger.debug("Live dashboard update tick (elapsed %ds): %s", elapsed, metrics)
                 await asyncio.sleep(2.0)
                 elapsed += 2
@@ -213,7 +213,7 @@ class TelegramSwarmBot:
         return "\n".join(lines)
 
     def generate_pitch_for_lead(self, lead_data: Dict[str, Any], platform: str = "telegram") -> str:
-        from archangel.models import RawPost, LeadAnalysis
+        from archangel.models import RawPost
         post = RawPost(
             source=lead_data.get("source", ""),
             channel=lead_data.get("channel", ""),
