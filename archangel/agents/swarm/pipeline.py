@@ -47,6 +47,23 @@ class StorageMetrics:
 
 
 # ---------------------------------------------------------------------------
+import hashlib
+import re
+
+
+def compute_content_fingerprint(text: str) -> str:
+    """Computes a 16-character SHA-256 fingerprint from normalized post content to detect cross-platform syndication."""
+    if not text:
+        return ""
+
+    text_no_urls = re.sub(r"https?://\S+", "", text.lower())
+    clean = re.sub(r"[^\w\s]", "", text_no_urls)
+    words = clean.split()
+    core_text = " ".join(words[:15]) if len(words) >= 15 else " ".join(words)
+    return hashlib.sha256(core_text.encode("utf-8")).hexdigest()[:16]
+
+
+# ---------------------------------------------------------------------------
 # LeadProcessor — consumes raw posts, filters, deduplicates, forwards
 # ---------------------------------------------------------------------------
 
@@ -66,6 +83,7 @@ class LeadProcessor:
         self.filter_engine = filter_engine
         self.event_bus = event_bus or EventBus.get_instance()
         self._seen_urls: OrderedDict[str, None] = OrderedDict()
+        self._seen_content_hashes: OrderedDict[str, str] = OrderedDict()
         self._max_seen_urls = max_seen_urls
         self._running = False
         self._task: Optional[asyncio.Task] = None
@@ -111,7 +129,7 @@ class LeadProcessor:
                 self.discovery_queue.task_done()
 
     async def _process_post(self, post: RawPost) -> None:
-        # Fast-path URL dedup with LRU eviction
+        # 1. Fast-path URL dedup with LRU eviction
         url_key = (post.url or "").strip()
         if url_key:
             if url_key in self._seen_urls:
@@ -120,6 +138,17 @@ class LeadProcessor:
             self._seen_urls[url_key] = None
             if len(self._seen_urls) > self._max_seen_urls:
                 self._seen_urls.popitem(last=False)
+
+        # 2. Content fingerprint dedup across platforms (RSS, Reddit, LinkedIn, X)
+        content_fp = compute_content_fingerprint(post.content)
+        if content_fp:
+            if content_fp in self._seen_content_hashes:
+                self.deduped_count += 1
+                logger.debug("Suppressed cross-posted duplicate content (Fingerprint: %s, Source: %s)", content_fp, post.source)
+                return
+            self._seen_content_hashes[content_fp] = post.source or "unknown"
+            if len(self._seen_content_hashes) > self._max_seen_urls:
+                self._seen_content_hashes.popitem(last=False)
 
         # Filter evaluation (CPU-only, 0 tokens)
         evaluation = self.filter_engine.evaluate(
