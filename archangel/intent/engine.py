@@ -70,6 +70,15 @@ BUYING_INTENT_TEMPLATES = [
     ("seeking {topic} contractor", 0.91, "Explicit Hiring", "Contract"),
     ("{topic} automation", 0.93, "Pain Points", "Automation"),
     ("need fullstack {topic} developer", 0.94, "Technical Requests", "Full Stack"),
+    ("need backend {topic} developer", 0.93, "Technical Requests", "Backend"),
+    ("need frontend {topic} developer", 0.93, "Technical Requests", "Frontend"),
+    ("need {topic} MVP", 0.95, "Startup Needs", "MVP Build"),
+    ("hire {topic} agency", 0.90, "Agency Requests", "Outsourcing"),
+    ("looking for {topic} consultant", 0.89, "Freelance Requests", "Consulting"),
+    ("need {topic} integration", 0.92, "Technical Requests", "Integration"),
+    ("{topic} maintenance contract", 0.87, "Business Problems", "Maintenance"),
+    ("need senior {topic} engineer", 0.96, "Explicit Hiring", "Senior Engineering"),
+    ("looking for {topic} team", 0.91, "Agency Requests", "Team Hire"),
 ]
 
 
