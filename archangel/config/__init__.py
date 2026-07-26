@@ -1,5 +1,5 @@
-"""Internal configuration models and configuration loading."""
+"""Configuration package for Archangel."""
 
-import logging
+from archangel.config.manager import ConfigManager
 
-logger = logging.getLogger(__name__)
+__all__ = ["ConfigManager"]

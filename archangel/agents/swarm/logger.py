@@ -35,84 +35,136 @@ def clean_html_text(text: str) -> str:
     return "\n".join(non_empty)
 
 
-def format_lead_block(post: RawPost, evaluation: Dict[str, Any], raw_post_id: int) -> str:
-    """Formats a lead into Archangel's standard structured text template."""
+from archangel.models import RawPost, Lead
+
+
+def format_lead_block(lead_or_post: Any, evaluation: Optional[Dict[str, Any]] = None, raw_post_id: int = 0) -> str:
+    """Formats a canonical Lead object (or fallback RawPost) into Archangel V1.3's full CRM Intelligence Report."""
     now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    keywords = evaluation.get("matched_keywords", [])
-    keywords_formatted = "\n".join([f"- {kw}" for kw in keywords]) if keywords else "- None"
+    if isinstance(lead_or_post, Lead):
+        lead = lead_or_post
+        post = lead.raw_post or RawPost()
+        post_id = lead.id or raw_post_id
+    else:
+        post = lead_or_post or RawPost()
+        post_id = raw_post_id
+        lead = Lead(id=post_id, raw_post=post, evaluation=evaluation or {})
 
-    confidence = evaluation.get("confidence", 0.0)
-    score = evaluation.get("score", confidence * 100 if confidence <= 1.0 else confidence)
-    priority = evaluation.get("priority", "HIGH" if confidence >= 0.75 else "MEDIUM" if confidence >= 0.5 else "LOW")
+    # Extract Canonical CRM Fields
+    company_name = lead.company_profile.get("company_name", {}).get("value") or "Unknown"
+    domain = lead.website.get("domain") or lead.company_profile.get("domain", {}).get("value") or "N/A"
+    socials = lead.contacts.get("socials") or lead.company_profile.get("socials", {}).get("value") or {}
+    socials_str = ", ".join([f"{k}: {v}" for k, v in socials.items()]) if isinstance(socials, dict) and socials else "None"
+    email = lead.contacts.get("email") or lead.company_profile.get("primary_email", {}).get("value") or "N/A"
+    
+    # Tech & AI Readiness
+    frameworks = lead.fingerprint.get("frameworks", []) if isinstance(lead.fingerprint, dict) else []
+    tech_stack_str = ", ".join(frameworks) if frameworks else "Standard Stack"
+    
+    ai_readiness = lead.ai_readiness or {}
+    ai_maturity = ai_readiness.get("maturity_level", "None")
+    ai_frameworks = ", ".join(ai_readiness.get("detected_frameworks", [])) if ai_readiness.get("detected_frameworks") else "None"
+    
+    # Health Diagnostics
+    health = lead.health or {}
+    health_score = health.get("score", "N/A")
+    ttfb = f"{health.get('ttfb_ms', 0):.0f}ms" if health.get("ttfb_ms") else "N/A"
+    ssl_status = "HTTPS Enabled" if health.get("has_ssl") else "No SSL / Insecure"
+    seo_status = "Optimized" if health.get("has_seo_tags") else "Missing OpenGraph"
+
+    # Pains & Opportunities
+    pains_list = [p.get("name") if isinstance(p, dict) else str(p) for p in lead.pains] if lead.pains else ["Talent Sourcing"]
+    pains_str = ", ".join(pains_list)
+    
+    opps_list = [o.get("service_name") if isinstance(o, dict) else str(o) for o in lead.opportunities] if lead.opportunities else ["Engineering Support"]
+    opps_str = ", ".join(opps_list)
+
+    # Commercial & Pitch
+    revenue_data = lead.revenue or {}
+    arr_range = revenue_data.get("estimated_arr_range", "Unspecified")
+    budget_tier = revenue_data.get("budget_level", "Medium")
+
+    competition_data = lead.competition or {}
+    outreach_diff = competition_data.get("difficulty_level", "Medium")
+
+    pitch_data = lead.pitch or {}
+    opening_line = pitch_data.get("opening_line", "Saw what you're building and wanted to reach out.")
+    val_prop = pitch_data.get("value_proposition", "We build scalable AI automation and web applications.")
+    cta = pitch_data.get("call_to_action", "Would you be open to a quick 10-minute chat?")
 
     raw_content = clean_html_text(post.content or "")
 
-    template = f"""==============================
-=== LEAD #{raw_post_id:05d} ===
-==============================
+    template = f"""==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #{post_id:05d} ===
+==================================================
 
-[IDENTITY]
-Lead ID: #{raw_post_id:05d}
+[1. IDENTITY]
+Lead ID: #{post_id:05d}
+Lifecycle Stage: {lead.lifecycle_stage.upper()}
 Generated At: {now_str}
 
-[CONTACT]
-Name: {evaluation.get("author_name", post.author or "N/A")}
-Username: {post.author or "N/A"}
-Company: {evaluation.get("company", "N/A")}
-Role: {evaluation.get("role", "N/A")}
+[2. COMPANY PROFILE]
+Company Name: {company_name}
+Target Domain: {domain}
+Funding Stage: {lead.company_profile.get("funding_stage", {}).get("value") or "Bootstrapped / Early"}
+Team Size: {lead.company_profile.get("employee_count_range", {}).get("value") or "1-10"}
 
-[SOURCE]
-Platform: {post.source or "N/A"}
-Post Type: {evaluation.get("post_type", "Public Job / Lead Post")}
+[3. CONTACTS & SOCIALS]
+Author Handle: {post.author or "N/A"}
+Primary Email: {email}
+Social Handles: {socials_str}
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: {domain}
 Post URL: {post.url or "N/A"}
-Channel/Subreddit: {post.channel or "N/A"}
-Author Profile: {evaluation.get("author_profile", "N/A")}
+Platform/Source: {post.source or "N/A"} (Channel: {post.channel or "N/A"})
 
-[RAW DATA]
-Raw Message:
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: {tech_stack_str}
+
+[6. AI READINESS MATRIX]
+Maturity Tier: {ai_maturity}
+Detected AI Tech: {ai_frameworks}
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: {health_score}/100
+Response Speed (TTFB): {ttfb}
+SSL Status: {ssl_status}
+SEO / Social Tags: {seo_status}
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: {pains_str}
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: {opps_str}
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Estimated ARR Range: {arr_range}
+Buying Power Tier: {budget_tier}
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: {outreach_diff}
+Platform Saturation: {competition_data.get("platform_saturation", 20.0):.0f}%
+
+[12. LEAD SCORING]
+Overall Score: {lead.score:.1f} / 100.0
+Priority Tier: {lead.priority}
+Filter Confidence: {lead.confidence:.2f}
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "{opening_line}"
+Value Proposition: "{val_prop}"
+Call to Action: "{cta}"
+
+[14. RAW POST MESSAGE]
 \"\"\"
 {raw_content}
 \"\"\"
 
-[EXTRACTED SIGNALS]
-Keywords Found:
-{keywords_formatted}
-
-Problem Detected: {evaluation.get("problem_detected", "Need specialized talent / implementation")}
-Service Needed: {evaluation.get("service_needed", "Software Engineering / Development")}
-
-[BUSINESS INTELLIGENCE]
-Estimated Budget: {evaluation.get("estimated_budget", "Unspecified")}
-Budget Confidence: {evaluation.get("budget_confidence", "Medium")}
-Currency: {evaluation.get("currency", "USD")}
-
-Company Size: {evaluation.get("company_size", "N/A")}
-Industry: {evaluation.get("industry", "Technology")}
-
-[SCORING]
-Lead Score: {score:.1f}
-Priority: {priority}
-Confidence: {confidence:.2f}
-
-Score Breakdown:
-- Keyword Match: {evaluation.get("keyword_score", f"{confidence*40:.1f}/40")}
-- Budget Match: {evaluation.get("budget_score", "15.0/20")}
-- Urgency: {evaluation.get("urgency_score", "15.0/20")}
-- Relevance: {evaluation.get("relevance_score", "15.0/20")}
-
-[ARCHANGEL ANALYSIS]
-Why This Is A Lead: {evaluation.get("reasoning", "Matched search criteria and skill requirements.")}
-Recommended Action: {evaluation.get("recommended_action", "Reach out directly via platform contact link or URL.")}
-
-[STATUS]
-State: {evaluation.get("state", "Discovered")}
-Assigned Agent: {evaluation.get("assigned_agent", "SwarmWorker")}
-Last Updated: {now_str}
-
-==============================
-END LEAD #{raw_post_id:05d}
-==============================
+==================================================
+END CRM LEAD REPORT #{post_id:05d}
+==================================================
 """
     return template
 

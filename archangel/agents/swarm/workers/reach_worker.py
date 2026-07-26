@@ -65,5 +65,5 @@ class AgentReachWorker(BasePlatformWorker):
 
             return posts
 
-        return await loop.run_in_executor(None, _fetch)
+        return await loop.run_in_executor(self.get_executor(), _fetch)
 

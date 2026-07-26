@@ -52,6 +52,12 @@ def parse_fresh_range(fresh_str: Optional[str]) -> Optional[tuple[float, float]]
         return (0.0, float(v1 * unit_sec))
 
 
+QUERY_STOP_WORDS = {
+    "looking", "for", "need", "hiring", "seeking", "want", "wanted", "the", "a",
+    "an", "in", "of", "to", "and", "is", "with", "or", "on", "at", "by", "from"
+}
+
+
 class TokenFreeFilter:
     """Evaluates raw posts locally using regex matching and rules from root you.txt."""
 
@@ -64,8 +70,18 @@ class TokenFreeFilter:
         self.profile_memory = profile_memory or UserProfileMemory()
         self.leads_query = leads_query.strip() if leads_query else None
         self.query_keywords = [
-            k.lower() for k in re.split(r"\s+", self.leads_query) if len(k) > 2
+            k.lower() for k in re.split(r"\W+", self.leads_query)
+            if len(k) > 1 and k.lower() not in QUERY_STOP_WORDS
         ] if self.leads_query else []
+
+        self.intent_expansion = None
+        self.excluded_terms = []
+        if self.leads_query:
+            from archangel.intent import IntentExpansionEngine
+            engine = IntentExpansionEngine()
+            self.intent_expansion = engine.expand_intent(self.leads_query)
+            self.excluded_terms = self.intent_expansion.excluded_terms
+
         self.fresh_str = fresh.strip() if fresh else None
         self.fresh_range = parse_fresh_range(self.fresh_str)
 
@@ -110,9 +126,20 @@ class TokenFreeFilter:
                     "is_excluded": True,
                 }
 
-        # 2. Check user profile exclusions (from you.txt)
+        # 2. Check user profile exclusions (from you.txt) & Intent Expansion excluded terms
+        text_lower = full_text.lower()
+        if self.excluded_terms:
+            for excl in self.excluded_terms:
+                if excl in text_lower:
+                    return {
+                        "is_lead": False,
+                        "confidence": 0.0,
+                        "reason": f"Excluded by Intent Expansion noise filter: '{excl}'",
+                        "matched_keywords": [],
+                        "is_excluded": True,
+                    }
+
         if self.profile_memory.negative_keywords:
-            text_lower = full_text.lower()
             for neg in self.profile_memory.negative_keywords:
                 if neg in text_lower:
                     return {
@@ -126,10 +153,14 @@ class TokenFreeFilter:
         # 3. Match Lead Intent Signatures
         text_lower = full_text.lower()
 
-        # If specific leads_query provided, enforce query match
+        # If specific leads_query provided, enforce strict query match
         if self.leads_query:
             exact_match = self.leads_query.lower() in text_lower
-            kw_match = any(kw in text_lower for kw in self.query_keywords)
+            if self.query_keywords:
+                kw_match = all(kw in text_lower for kw in self.query_keywords)
+            else:
+                kw_match = exact_match
+
             if not (exact_match or kw_match):
                 return {
                     "is_lead": False,

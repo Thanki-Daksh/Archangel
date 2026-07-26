@@ -7,7 +7,7 @@ from typing import List, Set, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_YOU_TXT_PATH = Path("you.txt")
+DEFAULT_YOU_TXT_PATHS = [Path("configs/you.txt"), Path("you.txt")]
 
 COMMON_TECH_TOKENS = {
     "python", "fastapi", "django", "flask", "react", "next.js", "nextjs",
@@ -19,10 +19,13 @@ COMMON_TECH_TOKENS = {
 
 
 class UserProfileMemory:
-    """Parses plain-text bullet points from root-level you.txt into scoring preferences and exclusions."""
+    """Parses plain-text bullet points from configs/you.txt into scoring preferences and exclusions."""
 
     def __init__(self, file_path: Optional[Path] = None) -> None:
-        self.file_path = file_path or DEFAULT_YOU_TXT_PATH
+        if file_path:
+            self.file_path = file_path
+        else:
+            self.file_path = next((p for p in DEFAULT_YOU_TXT_PATHS if p.exists()), DEFAULT_YOU_TXT_PATHS[0])
         self.positive_keywords: Set[str] = set()
         self.negative_keywords: Set[str] = set()
         self.min_budget: Optional[float] = None

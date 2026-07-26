@@ -7,11 +7,21 @@ from typing import List
 from archangel.models import RawPost
 from archangel.agents.swarm.registry import SwarmTarget
 
+from concurrent.futures import ThreadPoolExecutor
+
 logger = logging.getLogger(__name__)
 
 
 class BasePlatformWorker(ABC):
     """Abstract base worker representing an async scraping task in the swarm."""
+
+    _shared_executor: ThreadPoolExecutor | None = None
+
+    @classmethod
+    def get_executor(cls) -> ThreadPoolExecutor:
+        if cls._shared_executor is None:
+            cls._shared_executor = ThreadPoolExecutor(max_workers=128, thread_name_prefix="swarm-net")
+        return cls._shared_executor
 
     def __init__(self, target: SwarmTarget) -> None:
         self.target = target

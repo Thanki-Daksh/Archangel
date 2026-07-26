@@ -66,23 +66,21 @@ class PlatformRegistry:
 
         resolved: List[SwarmTarget] = []
 
-        # If leads_query specified, inject targeted search streams first
+        # If leads_query specified, use IntentExpansionEngine to distribute 25+ buying intent queries
         if leads_query and leads_query.strip():
-            q_clean = "+".join(leads_query.strip().split())
-            logger.info("Injecting target-specific streams for leads query: '%s'", leads_query)
-            
-            # Reddit search streams for query
-            for sub in ["all", "forhire", "freelance_forhire", "webdev", "pythonjobs", "jobbit", "jobs"]:
+            from archangel.intent import IntentExpansionEngine
+            engine = IntentExpansionEngine()
+            expansion = engine.expand_intent(leads_query)
+            logger.info("Intent Expansion Engine generated %d queries for: '%s'", len(expansion.search_queries), leads_query)
+
+            subs = ["all", "forhire", "freelance_forhire", "webdev", "pythonjobs", "jobbit", "jobs"]
+            for i, iq in enumerate(expansion.search_queries):
+                q_clean = "+".join(iq.query.strip().split())
+                sub = subs[i % len(subs)]
                 resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/search/.json?q={q_clean}&sort=new&limit=100", "reddit", 2))
-                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/search/.json?q=hiring+{q_clean}&sort=new&limit=100", "reddit", 2))
-
-            # X / Twitter search streams for query
-            resolved.append(SwarmTarget("x", f"agent-reach:x:{q_clean}", "reach", 2))
-            resolved.append(SwarmTarget("x", f"agent-reach:x:hiring+{q_clean}", "reach", 2))
-            resolved.append(SwarmTarget("x", f"agent-reach:x:looking+for+{q_clean}", "reach", 2))
-
-            # GitHub issue search for query
-            resolved.append(SwarmTarget("github", f"https://api.github.com/search/issues?q={q_clean}+state:open&per_page=100", "reach", 3))
+                resolved.append(SwarmTarget("x", f"agent-reach:x:{q_clean}", "reach", 2))
+                if i % 3 == 0:
+                    resolved.append(SwarmTarget("github", f"https://api.github.com/search/issues?q={q_clean}+state:open&per_page=100", "reach", 3))
 
         # If default or "all", expand into 170+ parallel streams
         if not raw_list or "all" in [x.lower() for x in raw_list]:

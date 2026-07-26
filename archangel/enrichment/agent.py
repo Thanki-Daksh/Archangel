@@ -13,7 +13,7 @@ from archangel.memory.graph import HistoricalMemory
 from archangel.scoring.revenue import RevenueEstimator
 from archangel.enrichment.pitch import PitchGenerator
 from archangel.events import EventBus
-from archangel.models import RawPost
+from archangel.models import RawPost, Lead
 from archangel.storage import StorageBackend
 from dataclasses import asdict
 
@@ -69,36 +69,36 @@ class EnrichmentAgent:
                 )
                 self._process_enrichment(p, raw_post_id)
 
-    def _process_enrichment(self, post: RawPost, raw_post_id: int) -> dict:
+    def _process_enrichment(self, post: RawPost, raw_post_id: int, evaluation: Optional[dict] = None) -> Lead:
+        eval_data = evaluation or {}
         # 1. Base Deep Profile & Heuristics
         enriched = self.engine.enrich_post(post)
         profile = enriched["company_profile"]
         content_text = post.content or ""
         
-        # 2. Phase 2: Tech Fingerprinting (Sync wrapper over async/threads)
+        # 2. Tech Fingerprinting
         domain = profile["domain"]["value"]
         fingerprint_data = self.fingerprinter.analyze_sync(domain) if domain else {"health": None, "fingerprint": None}
         
-        # Merge old tech legacy logic with new fingerprint data
         if fingerprint_data["fingerprint"] and fingerprint_data["fingerprint"]["frameworks"]:
             enriched["detected_tech"] = list(set(enriched.get("detected_tech", []) + fingerprint_data["fingerprint"]["frameworks"]))
             
-        # 3. Phase 2: AI Readiness
+        # 3. AI Readiness
         ai_readiness = self.ai_readiness.evaluate(content_text)
         
-        # 4. Phase 2: Competition Analysis
+        # 4. Competition Analysis
         competition = self.competition_analyzer.evaluate(post)
         
-        # 5. Phase 3: Buying Triggers & Historical Memory
+        # 5. Buying Triggers & Historical Memory
         triggers = self.trigger_detector.detect(content_text)
         history = self.historical_memory.evaluate(domain, profile["company_name"]["value"], raw_post_id)
         
-        # 6. Phase 1: Pain & Opportunity Classification (Uses tech/health context)
+        # 6. Pain & Opportunity Classification
         pains = self.pain_classifier.classify(content_text)
         health_score = fingerprint_data["health"]["score"] if fingerprint_data["health"] else 100
         opportunities = self.opportunity_classifier.evaluate(pains, health_score=health_score)
 
-        # 7. Phase 4: Commercial Intelligence (Revenue & Pitch)
+        # 7. Commercial Intelligence (Revenue & Pitch)
         funding = profile.get("funding_stage", {}).get("value", "")
         team = profile.get("employee_count_range", {}).get("value", "")
         revenue = self.revenue_estimator.evaluate(funding, team, post.source or "")
@@ -118,7 +118,44 @@ class EnrichmentAgent:
         # Generate pitch using the fully enriched payload
         pitch = self.pitch_generator.generate(enriched)
         enriched["recommended_pitch"] = pitch.to_dict()
+
+        # Calculate final integrated score & priority
+        conf = eval_data.get("confidence", 0.70)
+        base_score = conf * 100 if conf <= 1.0 else conf
+        # Health penalty / opportunity bonus
+        if health_score < 70:
+            base_score = min(98.0, base_score + 10.0)
+        final_score = round(base_score, 1)
+        priority = "HIGH" if final_score >= 75.0 else "MEDIUM" if final_score >= 50.0 else "LOW"
         
+        # Construct Canonical Lead Object
+        from archangel.models import Lead
+        lead_obj = Lead(
+            id=raw_post_id,
+            raw_post=post,
+            evaluation=eval_data,
+            company_profile=profile,
+            contacts={
+                "name": profile.get("company_name", {}).get("value", "N/A"),
+                "email": profile.get("primary_email", {}).get("value", "N/A"),
+                "socials": profile.get("socials", {}).get("value", {}),
+            },
+            website={"domain": domain, "url": post.url},
+            fingerprint=fingerprint_data.get("fingerprint") or {},
+            ai_readiness=ai_readiness.to_dict(),
+            health=fingerprint_data.get("health") or {},
+            pains=[p.to_dict() if hasattr(p, 'to_dict') else asdict(p) for p in pains],
+            opportunities=[o.to_dict() if hasattr(o, 'to_dict') else asdict(o) for o in opportunities],
+            revenue=revenue.to_dict(),
+            competition=competition.to_dict(),
+            pitch=pitch.to_dict(),
+            score=final_score,
+            priority=priority,
+            confidence=conf,
+            lifecycle_stage="analyzed",
+        )
+
+        # Store analysis & enrichment in database
         self.storage.store_enrichment(
             raw_post_id=raw_post_id,
             domain=profile["domain"]["value"],
@@ -127,12 +164,15 @@ class EnrichmentAgent:
             social_links=profile["socials"]["value"] if profile["socials"]["value"] else [],
             enrichment_data=enriched["enrichment_data"],
         )
+        
+        # Publish event with canonical Lead object
         self.event_bus.publish(
             "lead.enriched",
             {
                 "raw_post_id": raw_post_id,
+                "lead": lead_obj,
                 "enrichment": enriched,
             },
         )
-        logger.info("Enriched lead #%d (company: %s, tech: %s)", raw_post_id, profile["company_name"]["value"], enriched["detected_tech"])
-        return enriched
+        logger.info("Enriched canonical Lead #%d (company: %s, score: %.1f)", raw_post_id, profile["company_name"]["value"], final_score)
+        return lead_obj

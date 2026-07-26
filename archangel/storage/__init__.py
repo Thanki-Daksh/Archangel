@@ -161,6 +161,26 @@ class StorageBackend:
             """)
             self._conn.commit()
 
+    def clear_all_leads(self) -> None:
+        """Purge all raw posts, lead analyses, scores, and lead sources from SQLite."""
+        with self._write_lock:
+            cursor = self._conn.cursor()
+            try:
+                cursor.execute("DELETE FROM lead_sources;")
+                cursor.execute("DELETE FROM lead_scores;")
+                cursor.execute("DELETE FROM lead_analyses;")
+                cursor.execute("DELETE FROM raw_posts;")
+                self._conn.commit()
+                cursor.execute("VACUUM;")
+                logger.info("Cleared all lead entries and raw posts from SQLite database.")
+            except Exception as exc:
+                try:
+                    self._conn.rollback()
+                except Exception:
+                    pass
+                logger.error("Failed to clear database lead tables: %s", exc)
+                raise
+
     def store_raw_post(self, post: RawPost) -> int:
         with self._write_lock:
             cursor = self._conn.cursor()

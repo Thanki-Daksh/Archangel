@@ -1,67 +1,97 @@
-"""Configuration manager — loads, validates, and serves config values."""
+"""ConfigManager — Manages persistent configuration in ~/.archangel/."""
 
+import json
 import logging
+import os
+import sys
 from pathlib import Path
-from typing import Any
-
-from dotenv import load_dotenv
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CONFIG_DIR = Path("configs")
+CONFIG_DIR = Path.home() / ".archangel"
 
 
-def load_config(config_dir: str | Path | None = None) -> dict[str, Any]:
-    """Load and merge all configuration YAML files.
+class ConfigManager:
+    """Thread-safe manager for user preferences, provider credentials, and swarm defaults."""
 
-    Parameters
-    ----------
-    config_dir : str or Path, optional
-        Directory containing YAML configuration files.
+    def __init__(self, base_dir: Optional[Path] = None) -> None:
+        self.base_dir = base_dir or CONFIG_DIR
+        self.base_dir.mkdir(parents=True, exist_ok=True)
 
-    Returns
-    -------
-    dict
-        Merged configuration dictionary.
-    """
-    load_dotenv()
-    config_dir = Path(config_dir) if config_dir else DEFAULT_CONFIG_DIR
+    def _get_path(self, filename: str) -> Path:
+        return self.base_dir / filename
 
-    if not config_dir.exists():
-        logger.warning("Config directory '%s' not found; using defaults.", config_dir)
-        return _default_config()
+    def is_setup_completed(self) -> bool:
+        """Returns True if Archangel setup has been run and validated."""
+        cfg = self.load("config.json")
+        return bool(cfg.get("setup_completed", False))
 
-    cfg: dict[str, Any] = {}
-    import yaml
+    def mark_setup_completed(self, status: bool = True) -> None:
+        """Updates setup status in ~/.archangel/config.json."""
+        cfg = self.load("config.json")
+        cfg["setup_completed"] = status
+        cfg["configured_at"] = os.popen("date").read().strip() if sys.platform != "win32" else "configured"
+        self.save("config.json", cfg)
 
-    for yaml_file in sorted(config_dir.glob("*.yaml")):
+    def load(self, filename: str) -> Dict[str, Any]:
+        """Loads a JSON configuration file from ~/.archangel/."""
+        path = self._get_path(filename)
+        if not path.exists():
+            return {}
         try:
-            with open(yaml_file, "r", encoding="utf-8") as fh:
-                data = yaml.safe_load(fh)
-            if isinstance(data, dict):
-                cfg.update(data)
-                logger.debug("Loaded config from %s", yaml_file.name)
+            return json.loads(path.read_text(encoding="utf-8"))
         except Exception as exc:
-            logger.error("Failed to load %s: %s", yaml_file.name, exc)
+            logger.error("Failed loading config %s: %s", path, exc)
+            return {}
 
-    return cfg if cfg else _default_config()
+    def save(self, filename: str, data: Dict[str, Any]) -> None:
+        """Saves data to a JSON configuration file in ~/.archangel/."""
+        path = self._get_path(filename)
+        try:
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        except Exception as exc:
+            logger.error("Failed saving config %s: %s", path, exc)
 
+    def get_profile(self) -> Dict[str, Any]:
+        return self.load("profile.json")
 
-def _default_config() -> dict[str, Any]:
-    return {
-        "runtime": {"debug": False, "log_level": "INFO", "timezone": "UTC"},
-        "plugins": {"auto_discovery": True},
-        "guardian": {"enabled": True},
-        "engine": {"workers": "auto"},
-    }
+    def save_profile(self, profile_data: Dict[str, Any]) -> None:
+        self.save("profile.json", profile_data)
 
+    def get_providers(self) -> Dict[str, Any]:
+        return self.load("providers.json")
 
-def validate_config(cfg: dict[str, Any]) -> list[str]:
-    """Validate configuration structure and return a list of error messages.
+    def save_providers(self, providers_data: Dict[str, Any]) -> None:
+        self.save("providers.json", providers_data)
 
-    Returns an empty list when the configuration is valid.
-    """
-    errors: list[str] = []
-    if not isinstance(cfg, dict):
-        errors.append("Configuration must be a dictionary.")
-    return errors
+    def get_telegram(self) -> Dict[str, Any]:
+        return self.load("telegram.json")
+
+    def save_telegram(self, telegram_data: Dict[str, Any]) -> None:
+        self.save("telegram.json", telegram_data)
+
+    def get_search(self) -> Dict[str, Any]:
+        defaults = {
+            "default_workers": 300,
+            "default_depth": 10,
+            "max_concurrent_requests": 128,
+            "preferred_regions": ["US", "Remote"],
+            "preferred_industries": ["SaaS", "AI", "Software"],
+        }
+        loaded = self.load("search.json")
+        defaults.update(loaded)
+        return defaults
+
+    def save_search(self, search_data: Dict[str, Any]) -> None:
+        self.save("search.json", search_data)
+
+    def reset_all(self) -> None:
+        """Deletes all persistent configuration files in ~/.archangel/."""
+        for fn in ["config.json", "profile.json", "providers.json", "telegram.json", "search.json", "outputs.json"]:
+            path = self._get_path(fn)
+            if path.exists():
+                try:
+                    path.unlink()
+                except Exception as exc:
+                    logger.warning("Could not delete %s: %s", path, exc)

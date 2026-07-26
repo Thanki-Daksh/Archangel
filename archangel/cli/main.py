@@ -112,6 +112,8 @@ from archangel.cli.handlers import (
     cmd_config,
     cmd_export,
     cmd_leads,
+    cmd_wipe_lead_logs,
+    cmd_lead_logs,
     cmd_discord,
     cmd_logs,
     cmd_purge,
@@ -265,19 +267,84 @@ def scan() -> None:
     cmd_scan(_console)
 
 
-@cli.command("leads")
-@click.argument("query", nargs=-1)
-@click.option("--limit", default=10, help="Maximum number of leads to fetch or display.")
-def leads_cli_command(query: tuple, limit: int) -> None:
-    """Fetch live leads from Reddit/X or list saved database leads.
+def _handle_lead_or_logs(ctx: click.Context, query: tuple, limit: int, wipe: bool, db: bool) -> None:
+    sub_wipe = wipe or any(a.lower() in ("--wipe", "-w") for a in query)
+    sub_db = db or any(a.lower() in ("--db", "-d") for a in query)
+    
+    if sub_wipe or sub_db:
+        cmd_wipe_lead_logs(_console, db=sub_db)
+        return
 
-    Examples:
-        archangel leads "discord bot"
-        archangel leads custom bot max: 4
-        archangel leads "python developer" max:3 --limit 5
-    """
+    if query and query[0].lower() in ("log", "logs"):
+        cmd_lead_logs(_console, wipe=sub_wipe, db=sub_db)
+        return
+
     query_str = " ".join(query).strip()
     cmd_leads(_console, query=query_str, limit=limit)
+
+
+@cli.group("lead", invoke_without_command=True)
+@click.argument("query", nargs=-1)
+@click.option("--limit", default=10, help="Maximum number of leads to fetch or display.")
+@click.option("--wipe", is_flag=True, help="Wipe everything inside data/swarm_leads.log.")
+@click.option("--db", is_flag=True, help="Purge all lead entries from SQLite database as well.")
+@click.pass_context
+def lead_cli_group(ctx: click.Context, query: tuple, limit: int, wipe: bool, db: bool) -> None:
+    """Fetch live leads, inspect lead logs, or wipe lead log stream/DB."""
+    if ctx.invoked_subcommand is None:
+        _handle_lead_or_logs(ctx, query, limit, wipe, db)
+
+
+@lead_cli_group.command("logs")
+@click.option("--wipe", is_flag=True, help="Wipe everything inside data/swarm_leads.log.")
+@click.option("--db", is_flag=True, help="Purge all lead entries from SQLite database as well.")
+@click.option("--tail", "-t", default=50, help="Show last N lines of lead logs.")
+@click.option("--output", "-o", default="data/swarm_leads.log", help="Path to lead log file.")
+def lead_logs_subcmd(wipe: bool, db: bool, tail: int, output: str) -> None:
+    """View or wipe the swarm lead log stream (data/swarm_leads.log)."""
+    cmd_lead_logs(_console, path=output, tail=tail, wipe=wipe, db=db)
+
+
+@lead_cli_group.command("log")
+@click.option("--wipe", is_flag=True, help="Wipe everything inside data/swarm_leads.log.")
+@click.option("--db", is_flag=True, help="Purge all lead entries from SQLite database as well.")
+@click.option("--tail", "-t", default=50, help="Show last N lines of lead logs.")
+@click.option("--output", "-o", default="data/swarm_leads.log", help="Path to lead log file.")
+def lead_log_subcmd(wipe: bool, db: bool, tail: int, output: str) -> None:
+    """View or wipe the swarm lead log stream (data/swarm_leads.log)."""
+    cmd_lead_logs(_console, path=output, tail=tail, wipe=wipe, db=db)
+
+
+@cli.group("leads", invoke_without_command=True)
+@click.argument("query", nargs=-1)
+@click.option("--limit", default=10, help="Maximum number of leads to fetch or display.")
+@click.option("--wipe", is_flag=True, help="Wipe everything inside data/swarm_leads.log.")
+@click.option("--db", is_flag=True, help="Purge all lead entries from SQLite database as well.")
+@click.pass_context
+def leads_cli_group(ctx: click.Context, query: tuple, limit: int, wipe: bool, db: bool) -> None:
+    """Fetch live leads, inspect lead logs, or wipe lead log stream/DB (alias for 'lead')."""
+    if ctx.invoked_subcommand is None:
+        _handle_lead_or_logs(ctx, query, limit, wipe, db)
+
+
+@leads_cli_group.command("logs")
+@click.option("--wipe", is_flag=True, help="Wipe everything inside data/swarm_leads.log.")
+@click.option("--db", is_flag=True, help="Purge all lead entries from SQLite database as well.")
+@click.option("--tail", "-t", default=50, help="Show last N lines of lead logs.")
+@click.option("--output", "-o", default="data/swarm_leads.log", help="Path to lead log file.")
+def leads_logs_subcmd(wipe: bool, db: bool, tail: int, output: str) -> None:
+    """View or wipe the swarm lead log stream (data/swarm_leads.log)."""
+    cmd_lead_logs(_console, path=output, tail=tail, wipe=wipe, db=db)
+
+
+@leads_cli_group.command("log")
+@click.option("--wipe", is_flag=True, help="Wipe everything inside data/swarm_leads.log.")
+@click.option("--db", is_flag=True, help="Purge all lead entries from SQLite database as well.")
+@click.option("--tail", "-t", default=50, help="Show last N lines of lead logs.")
+@click.option("--output", "-o", default="data/swarm_leads.log", help="Path to lead log file.")
+def leads_log_subcmd(wipe: bool, db: bool, tail: int, output: str) -> None:
+    """View or wipe the swarm lead log stream (data/swarm_leads.log)."""
+    cmd_lead_logs(_console, path=output, tail=tail, wipe=wipe, db=db)
 
 
 @cli.command("discord")
@@ -509,7 +576,7 @@ def swarm_options(f):
     f = click.option("-d", "--duration", "--d", "duration", default="3h", help="Duration to run swarm (e.g. 30s, 3h, continuous).")(f)
     f = click.option("-o", "--output", "--o", "output", default="data/swarm_leads.log", help="Path to output stream log file.")(f)
     f = click.option("--targets", default="all", help="Target platforms, links, or 'all'.")(f)
-    f = click.option("-w", "--workers", "--w", "workers", default=1000, help="Max worker tasks in pool.")(f)
+    f = click.option("-w", "--workers", "--w", "workers", default=300, help="Max worker tasks in pool.")(f)
     f = click.option("-l", "--leads", "--l", "--query", "leads_query", default=None, help="Target specific lead topic/niche (e.g. 'website development').")(f)
     f = click.option("-f", "--fresh", "--f", "fresh", default=None, help="Freshness age filter e.g. '3d', '1-10d', '2w', '1y', '1-10 days'.")(f)
     f = click.option("--write-interval", "--w-i", "-wi", "--wi", "--flush-interval", "write_interval", default=None, help="File write flush interval e.g. '10s', '5s', '1m'.")(f)
@@ -532,6 +599,13 @@ def _run_swarm(
     import asyncio
     from pathlib import Path
     from archangel.agents.swarm.manager import SwarmManager
+    from archangel.config import ConfigManager
+
+    cfg_mgr = ConfigManager()
+    if not cfg_mgr.is_setup_completed():
+        from archangel.cli.handlers import cmd_setup
+        _console.print("[yellow]Archangel has not been configured yet. Running initial setup wizard...[/]")
+        cmd_setup(_console)
 
     msg = f"[bold cyan]⚔ Summoning 24/7 Agent Swarm... (Duration: {duration}, Workers: {workers})"
     if leads_query:
@@ -627,6 +701,30 @@ def a_swarm_subcmd(duration: str, output: str, targets: str, workers: int, leads
 def a_s_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
     """Shortcut alias for 'agent swarm' (aa a s)."""
     _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
+
+
+@cli.command("setup")
+@click.option("--reset", is_flag=True, help="Deletes existing configuration and reruns the wizard.")
+@click.option("--telegram", is_flag=True, help="Configure Telegram bot credentials only.")
+@click.option("--providers", is_flag=True, help="Configure AI Provider credentials only.")
+def setup_cli_cmd(reset: bool, telegram: bool, providers: bool) -> None:
+    """Run interactive Archangel V1.3 Setup Wizard."""
+    from archangel.cli.handlers import cmd_setup
+    cmd_setup(_console, reset=reset, telegram=telegram, providers=providers)
+
+
+@cli.command("doctor")
+def doctor_cli_cmd() -> None:
+    """Run full Archangel system diagnostics & health checks."""
+    from archangel.cli.handlers import cmd_doctor
+    cmd_doctor(_console)
+
+
+@cli.command("config")
+def config_cli_cmd() -> None:
+    """Display active persistent configuration stored under ~/.archangel/."""
+    from archangel.cli.handlers import cmd_config
+    cmd_config(_console)
 
 
 # ---------------------------------------------------------------------------

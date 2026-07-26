@@ -56,4 +56,4 @@ class CustomScriptWorker(BasePlatformWorker):
                 logger.debug("CustomScriptWorker execution error: %s", e)
             return []
 
-        return await loop.run_in_executor(None, _exec)
+        return await loop.run_in_executor(self.get_executor(), _exec)

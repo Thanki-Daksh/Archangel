@@ -27,7 +27,7 @@ class RSSStreamWorker(BasePlatformWorker):
         loop = asyncio.get_event_loop()
         def _fetch():
             try:
-                with urllib.request.urlopen(req, timeout=3) as resp:
+                with urllib.request.urlopen(req, timeout=2.5) as resp:
                     if resp.status == 200:
                         tree = ET.fromstring(resp.read().decode("utf-8", errors="ignore"))
                         channel = tree.find("channel")
@@ -54,4 +54,4 @@ class RSSStreamWorker(BasePlatformWorker):
                 return []
             return []
 
-        return await loop.run_in_executor(None, _fetch)
+        return await loop.run_in_executor(self.get_executor(), _fetch)

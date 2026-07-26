@@ -9,6 +9,8 @@ from archangel.cli.handlers import (
     cmd_watch,
     cmd_scan,
     cmd_leads,
+    cmd_wipe_lead_logs,
+    cmd_lead_logs,
     cmd_doctor,
     cmd_config,
     cmd_export,
@@ -125,10 +127,19 @@ def _execute_repl_command(console: Console, segment: str) -> bool:
     elif _cmd == "scan":
         cmd_scan(console)
 
-    elif _cmd == "leads":
-        query_str = " ".join(_args)
-        limit_val = int(_opt("limit") or "10")
-        cmd_leads(console, query=query_str, limit=limit_val)
+    elif _cmd in ("lead", "leads"):
+        if _args and _args[0].lower() == "logs":
+            sub_wipe = _flag("wipe") or any(a.lower() in ("--wipe", "-w") for a in _args[1:])
+            sub_db = _flag("db") or any(a.lower() in ("--db", "-d") for a in _args[1:])
+            tail_val = int(_opt("tail") or "50")
+            cmd_lead_logs(console, tail=tail_val, wipe=sub_wipe, db=sub_db)
+        elif _flag("wipe") or "--wipe" in _args or "-w" in _args or _flag("db") or "--db" in _args:
+            sub_db = _flag("db") or "--db" in _args
+            cmd_wipe_lead_logs(console, db=sub_db)
+        else:
+            query_str = " ".join(_args)
+            limit_val = int(_opt("limit") or "10")
+            cmd_leads(console, query=query_str, limit=limit_val)
 
     elif _cmd == "doctor":
         cmd_doctor(console)

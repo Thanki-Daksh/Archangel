@@ -222,34 +222,39 @@ class BatchWriter:
         )
 
     async def _consume_loop(self) -> None:
-        while self._running:
-            try:
-                item = await asyncio.wait_for(
-                    self.storage_queue.get(), timeout=0.05
-                )
-                self._batch.append(item)
-                self.storage_queue.task_done()
+        try:
+            while self._running:
+                try:
+                    item = await asyncio.wait_for(
+                        self.storage_queue.get(), timeout=0.05
+                    )
+                    self._batch.append(item)
+                    self.storage_queue.task_done()
 
-                # Burst-drain all pending items currently available in queue
-                while not self.storage_queue.empty() and len(self._batch) < 200:
-                    try:
-                        b_item = self.storage_queue.get_nowait()
-                        self._batch.append(b_item)
-                        self.storage_queue.task_done()
-                    except asyncio.QueueEmpty:
-                        break
-            except asyncio.TimeoutError:
-                pass
-            except asyncio.CancelledError:
-                break
+                    # Burst-drain all pending items currently available in queue
+                    while not self.storage_queue.empty() and len(self._batch) < 200:
+                        try:
+                            b_item = self.storage_queue.get_nowait()
+                            self._batch.append(b_item)
+                            self.storage_queue.task_done()
+                        except asyncio.QueueEmpty:
+                            break
+                except asyncio.TimeoutError:
+                    pass
+                except asyncio.CancelledError:
+                    break
+                except Exception as loop_exc:
+                    logger.error("Error in BatchWriter inner loop: %s", loop_exc)
 
-            # Flush batch when flush_interval_seconds elapsed or instant mode active
-            elapsed = time.monotonic() - self._last_flush_time
-            if self._batch and (self.flush_interval_seconds <= 0.1 or elapsed >= self.flush_interval_seconds):
-                await self._flush_batch()
+                # Flush batch when flush_interval_seconds elapsed or instant mode active
+                elapsed = time.monotonic() - self._last_flush_time
+                if self._batch and (self.flush_interval_seconds <= 0.1 or elapsed >= self.flush_interval_seconds):
+                    await self._flush_batch()
+        except Exception as exc:
+            logger.error("BatchWriter _consume_loop crashed: %s", exc, exc_info=True)
 
     async def _flush_batch(self) -> None:
-        """Flush the accumulated batch to file and SQLite immediately."""
+        """Flush the accumulated raw posts batch to SQLite and enqueue for enrichment."""
         if not self._batch:
             return
 
@@ -258,24 +263,17 @@ class BatchWriter:
         batch_size = len(batch)
 
         posts = [item[0] for item in batch]
-        [item[1] for item in batch]
+        evals = [item[1] for item in batch]
 
         flush_start = time.monotonic()
 
-        # 1. Write formatted leads to file IMMEDIATELY (unbuffered instant flush)
+        # 1. Persist RawPosts to SQLite in background executor
         try:
-            blocks: List[str] = [
-                format_lead_block(post, eval_dict, i + 1)
-                for i, (post, eval_dict) in enumerate(batch, start=self.total_flushed + 1)
-            ]
-            self.file_writer.write_batch(blocks)
-        except Exception as file_exc:
-            logger.error("File write batch failed: %s", file_exc)
-
-        # 2. Persist to SQLite in background executor
-        try:
+            if not hasattr(self, "_db_executor"):
+                from concurrent.futures import ThreadPoolExecutor
+                self._db_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="db-writer")
             row_ids = await asyncio.get_event_loop().run_in_executor(
-                None, self.storage.store_raw_posts_batch, posts
+                self._db_executor, self.storage.store_raw_posts_batch, posts
             )
         except Exception as db_exc:
             logger.warning("SQLite storage write non-fatal delay: %s", db_exc)
@@ -289,10 +287,10 @@ class BatchWriter:
         
         # Enqueue for async enrichment
         if self.enrichment_queue:
-            for post, r_id in zip(posts, row_ids):
+            for post, eval_dict, r_id in zip(posts, evals, row_ids):
                 if r_id > 0:
                     try:
-                        self.enrichment_queue.put_nowait((post, r_id))
+                        self.enrichment_queue.put_nowait((post, eval_dict, r_id))
                     except asyncio.QueueFull:
                         logger.warning("Enrichment queue full. Dropping post %d from enrichment.", r_id)
 
@@ -306,7 +304,7 @@ class BatchWriter:
         self._last_flush_time = time.monotonic()
 
         logger.debug(
-            "Flushed batch of %d leads in %.1fms",
+            "Enqueued batch of %d leads for enrichment in %.1fms",
             batch_size, flush_duration_ms,
         )
 
@@ -320,16 +318,17 @@ class BatchWriter:
 
 
 # ---------------------------------------------------------------------------
-# EnrichmentProcessor — consumes stored posts and runs heavy async enrichment
+# EnrichmentProcessor — consumes stored posts, enriches, and emits CRM lead blocks
 # ---------------------------------------------------------------------------
 
 class EnrichmentProcessor:
-    """Async consumer that runs deep intelligence extraction off the main loop."""
+    """Async consumer that runs deep intelligence extraction and emits completed CRM lead blocks."""
 
-    def __init__(self, enrichment_queue: asyncio.Queue):
+    def __init__(self, enrichment_queue: asyncio.Queue, output_path: Optional[Path] = None):
         self.enrichment_queue = enrichment_queue
         self.agent = EnrichmentAgent()
-        # Unsubscribe the agent from the raw_post.stored event so it doesn't run twice
+        self.file_writer = SwarmFileWriter(output_path or Path("data/swarm_leads.log"))
+        # Unsubscribe the agent from raw_post.stored so it doesn't duplicate execution
         self.agent.event_bus.unsubscribe("raw_post.stored", self.agent._on_raw_post_stored)
         self._running = False
         self._task: Optional[asyncio.Task] = None
@@ -348,13 +347,14 @@ class EnrichmentProcessor:
                 await self._task
             except asyncio.CancelledError:
                 pass
+        self.file_writer.close()
         logger.info("EnrichmentProcessor stopped. Processed: %d", self.processed_count)
 
     async def _consume_loop(self) -> None:
         loop = asyncio.get_event_loop()
         while self._running:
             try:
-                post, row_id = await asyncio.wait_for(
+                item = await asyncio.wait_for(
                     self.enrichment_queue.get(), timeout=1.0
                 )
             except asyncio.TimeoutError:
@@ -362,9 +362,29 @@ class EnrichmentProcessor:
             except asyncio.CancelledError:
                 break
 
+            post, eval_dict, row_id = item if len(item) == 3 else (item[0], {}, item[1])
+
             try:
-                # Execute heavy enrichment in thread pool
-                await loop.run_in_executor(None, self.agent._process_enrichment, post, row_id)
+                if not hasattr(self, "_enrich_executor"):
+                    from concurrent.futures import ThreadPoolExecutor
+                    self._enrich_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="enrich-worker")
+                
+                # Run full enrichment -> returns canonical Lead object
+                lead_obj = await loop.run_in_executor(
+                    self._enrich_executor, self.agent._process_enrichment, post, row_id, eval_dict
+                )
+                
+                # Format complete CRM report and emit to data/swarm_leads.log
+                if lead_obj:
+                    report_block = format_lead_block(lead_obj)
+                    self.file_writer.write_batch([report_block])
+                    
+                    # Emit lead.saved event for Telegram / CLI consumers
+                    self.agent.event_bus.publish("lead.saved", {
+                        "lead": lead_obj,
+                        "raw_post_id": row_id,
+                    })
+
                 self.processed_count += 1
             except Exception as e:
                 logger.error("EnrichmentProcessor failed for lead %s: %s", row_id, e)
@@ -419,6 +439,7 @@ class StoragePipeline:
         )
         self.enricher = EnrichmentProcessor(
             enrichment_queue=self.enrichment_queue,
+            output_path=self.output_path,
         )
         self._backpressure_warnings = 0
 
