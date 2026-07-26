@@ -53,6 +53,7 @@ class SwarmManager:
         fresh: Optional[str] = None,
         write_interval: Optional[str] = None,
         telegram: bool = False,
+        budget: Optional[str] = None,
     ) -> None:
         self.duration_str = duration
         self.duration_seconds = parse_duration_seconds(duration)
@@ -62,12 +63,13 @@ class SwarmManager:
         self.leads_query = leads_query
         self.reset_log = reset_log
         self.fresh_str = fresh
+        self.budget_str = budget
         self.write_interval_str = write_interval
         self.flush_interval_seconds = parse_duration_seconds(write_interval) if write_interval else 0.05
         self.telegram_enabled = telegram
 
         self.registry = PlatformRegistry()
-        self.filter_engine = TokenFreeFilter(leads_query=self.leads_query, fresh=self.fresh_str)
+        self.filter_engine = TokenFreeFilter(leads_query=self.leads_query, fresh=self.fresh_str, budget=self.budget_str)
 
         # Build the async storage pipeline
         self.pipeline = StoragePipeline(

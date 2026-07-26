@@ -579,6 +579,7 @@ def swarm_options(f):
     f = click.option("-w", "--workers", "--w", "workers", default=300, help="Max worker tasks in pool.")(f)
     f = click.option("-l", "--leads", "--l", "--query", "leads_query", default=None, help="Target specific lead topic/niche (e.g. 'website development').")(f)
     f = click.option("-f", "--fresh", "--f", "fresh", default=None, help="Freshness age filter e.g. '3d', '1-10d', '2w', '1y', '1-10 days'.")(f)
+    f = click.option("-b", "--b", "--budget", "budget", default=None, help="Minimum budget threshold e.g. '$1000', '5k', '2500'.")(f)
     f = click.option("--write-interval", "--w-i", "-wi", "--wi", "--flush-interval", "write_interval", default=None, help="File write flush interval e.g. '10s', '5s', '1m'.")(f)
     f = click.option("-t", "--telegram", "--t", "telegram_mode", default="off", type=click.Choice(["on", "off"], case_sensitive=False), help="Auto-broadcast live monitor table to Telegram ('on' or 'off', default: 'off').")(f)
     f = click.option("--append", is_flag=True, default=False, help="Append to log file instead of starting fresh from 0.")(f)
@@ -592,6 +593,7 @@ def _run_swarm(
     workers: int,
     leads_query: str | None,
     fresh: str | None,
+    budget: str | None,
     write_interval: str | None,
     telegram_mode: str,
     append: bool,
@@ -612,6 +614,8 @@ def _run_swarm(
         msg += f" [Leads Query: '{leads_query}']"
     if fresh:
         msg += f" [Freshness: '{fresh}']"
+    if budget:
+        msg += f" [Minimum Budget: '{budget}']"
     if write_interval:
         msg += f" [Write Interval: '{write_interval}']"
     if telegram_mode.lower() == "on":
@@ -629,6 +633,7 @@ def _run_swarm(
         leads_query=leads_query,
         reset_log=not append,
         fresh=fresh,
+        budget=budget,
         write_interval=write_interval,
         telegram=(telegram_mode.lower() == "on"),
     )
@@ -640,23 +645,23 @@ def _run_swarm(
 
 @cli.command("swarm", cls=_SwarmCommand)
 @swarm_options
-def swarm_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
+def swarm_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
     """Launch 24/7 token-efficient agent swarm."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, write_interval, telegram_mode, append)
 
 
 @cli.command("as", cls=_SwarmCommand)
 @swarm_options
-def as_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
+def as_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
     """Shortcut alias for 'agent swarm'."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, write_interval, telegram_mode, append)
 
 
 @cli.command("s", cls=_SwarmCommand)
 @swarm_options
-def s_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
+def s_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
     """Shortcut alias for 'swarm'."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, write_interval, telegram_mode, append)
 
 
 @cli.group("agent", invoke_without_command=True)
@@ -669,16 +674,16 @@ def agent_group(ctx: click.Context) -> None:
 
 @agent_group.command("swarm", cls=_SwarmCommand)
 @swarm_options
-def agent_swarm_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
+def agent_swarm_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
     """Launch 24/7 token-efficient agent swarm."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, write_interval, telegram_mode, append)
 
 
 @agent_group.command("s", cls=_SwarmCommand)
 @swarm_options
-def agent_s_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
+def agent_s_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
     """Shortcut alias for 'agent swarm'."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, write_interval, telegram_mode, append)
 
 
 @cli.group("a", invoke_without_command=True)
@@ -691,16 +696,16 @@ def a_group(ctx: click.Context) -> None:
 
 @a_group.command("swarm", cls=_SwarmCommand)
 @swarm_options
-def a_swarm_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
+def a_swarm_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
     """Shortcut alias for 'agent swarm'."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, write_interval, telegram_mode, append)
 
 
 @a_group.command("s", cls=_SwarmCommand)
 @swarm_options
-def a_s_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
+def a_s_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, write_interval: str | None, telegram_mode: str, append: bool) -> None:
     """Shortcut alias for 'agent swarm' (aa a s)."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, write_interval, telegram_mode, append)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, write_interval, telegram_mode, append)
 
 
 @cli.command("setup")

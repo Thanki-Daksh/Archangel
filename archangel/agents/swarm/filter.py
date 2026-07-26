@@ -52,6 +52,63 @@ def parse_fresh_range(fresh_str: Optional[str]) -> Optional[tuple[float, float]]
         return (0.0, float(v1 * unit_sec))
 
 
+def parse_budget_amount(budget_str: Optional[str]) -> Optional[float]:
+    """Parses budget strings like '$1000', '1000', '5k', '$2.5k', '10k', '$10,000', '1000-5000', '1k-5k' into a float value."""
+    if not budget_str or not str(budget_str).strip():
+        return None
+
+    clean = str(budget_str).strip().lower().replace(",", "").replace("$", "")
+
+    # Range check e.g. "1k-5k" or "1000-5000"
+    m_range = re.match(r"^(\d+(?:\.\d+)?)\s*k?\s*-\s*(\d+(?:\.\d+)?)\s*k?$", clean)
+    if m_range:
+        v1_str, v2_str = m_range.group(1), m_range.group(2)
+        v1 = float(v1_str) * (1000.0 if "k" in v1_str or ("k" in clean and not v1_str.replace(".","").isdigit()) else 1.0)
+        v2 = float(v2_str) * (1000.0 if "k" in clean else 1.0)
+        return min(v1, v2)
+
+    # Check 'k' notation e.g. "5k", "2.5k", "10k"
+    m_k = re.match(r"^(\d+(?:\.\d+)?)\s*k$", clean)
+    if m_k:
+        return float(m_k.group(1)) * 1000.0
+
+    try:
+        return float(clean)
+    except ValueError:
+        m2 = re.search(r"(\d+(?:\.\d+)?)", clean)
+        if m2:
+            return float(m2.group(1))
+    return None
+
+
+def extract_post_budget(text: str) -> Optional[float]:
+    """Extracts explicit budget dollar amounts from post title & content."""
+    if not text:
+        return None
+
+    patterns = [
+        r"\$\s*(\d{1,3}(?:,\d{3})*|\d+)\s*([kK])?\b",
+        r"\b(?:budget|paying|compensation|pay|rate|bounty)\b[^\n\d]*\$?\s*(\d{1,3}(?:,\d{3})*|\d+)\s*([kK])?\b",
+        r"\b(\d{1,3}(?:,\d{3})*|\d+)\s*([kK])?\s*(?:usd|dollars|\$)\b",
+    ]
+
+    found_amounts: List[float] = []
+    for pat in patterns:
+        for match in re.finditer(pat, text, re.IGNORECASE):
+            raw_num = match.group(1).replace(",", "")
+            is_k = bool(match.group(2)) if len(match.groups()) >= 2 else False
+            try:
+                val = float(raw_num)
+                if is_k or "k" in match.group(0).lower():
+                    val *= 1000.0
+                if val >= 10:
+                    found_amounts.append(val)
+            except ValueError:
+                continue
+
+    return max(found_amounts) if found_amounts else None
+
+
 QUERY_STOP_WORDS = {
     "looking", "for", "need", "hiring", "seeking", "want", "wanted", "the", "a",
     "an", "in", "of", "to", "and", "is", "with", "or", "on", "at", "by", "from"
@@ -66,6 +123,7 @@ class TokenFreeFilter:
         profile_memory: Optional[UserProfileMemory] = None,
         leads_query: Optional[str] = None,
         fresh: Optional[str] = None,
+        budget: Optional[str] = None,
     ) -> None:
         self.profile_memory = profile_memory or UserProfileMemory()
         self.leads_query = leads_query.strip() if leads_query else None
@@ -84,6 +142,9 @@ class TokenFreeFilter:
 
         self.fresh_str = fresh.strip() if fresh else None
         self.fresh_range = parse_fresh_range(self.fresh_str)
+
+        self.budget_str = str(budget).strip() if budget else None
+        self.min_budget = parse_budget_amount(self.budget_str)
 
     def evaluate(
         self,
@@ -190,6 +251,25 @@ class TokenFreeFilter:
         keyword_bonus = min(len(matched_keywords) * 0.05, 0.25)
         confidence = round(min(base_conf + keyword_bonus, 0.98), 2)
 
+        # Budget evaluation rule
+        extracted_budget = extract_post_budget(full_text)
+        if self.min_budget is not None and self.min_budget > 0:
+            if extracted_budget is not None:
+                if extracted_budget < self.min_budget:
+                    return {
+                        "is_lead": False,
+                        "confidence": 0.0,
+                        "reason": f"Post budget (${extracted_budget:.0f}) is below requested --budget (${self.min_budget:.0f})",
+                        "matched_keywords": [],
+                        "is_excluded": True,
+                    }
+                else:
+                    # Explicit budget matching/exceeding threshold! Maximize confidence & boost priority
+                    confidence = 0.99
+            elif extracted_budget is None:
+                # If user passed a strict budget filter, boost posts containing dollar figures over unbudgeted posts
+                pass
+
         is_lead = confidence >= 0.60
 
         return {
@@ -197,5 +277,6 @@ class TokenFreeFilter:
             "confidence": confidence,
             "matched_keywords": sorted(list(matched_keywords)),
             "intent_signals": intent_matches,
+            "extracted_budget": extracted_budget,
             "is_excluded": False,
         }
