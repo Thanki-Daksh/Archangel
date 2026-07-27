@@ -59,10 +59,13 @@ class TelegramSwarmReporter:
 
     def __init__(self, token: Optional[str] = None, chat_id: Optional[str] = None) -> None:
         load_dotenv()
-        self.token = token or os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-        self.chat_id = chat_id or os.getenv("TELEGRAM_CHAT_ID", "").strip()
+        from archangel.config.manager import ConfigManager
+        cfg = ConfigManager().get_telegram()
+
+        self.token = token or os.getenv("TELEGRAM_BOT_TOKEN", "").strip() or cfg.get("bot_token", "").strip()
+        self.chat_id = chat_id or os.getenv("TELEGRAM_CHAT_ID", "").strip() or str(cfg.get("chat_id", "")).strip()
         self.message_id: Optional[int] = None
-        self.enabled = bool(self.token and self.chat_id)
+        self.enabled = bool(self.token and self.chat_id and self.token != "YOUR_BOT_TOKEN")
 
         if self.enabled:
             logger.info("TelegramSwarmReporter initialized for Chat ID: %s", self.chat_id)

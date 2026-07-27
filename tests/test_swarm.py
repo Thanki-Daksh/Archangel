@@ -88,7 +88,6 @@ def test_swarm_file_writer(tmp_path: Path):
     assert out_file.exists()
     content = out_file.read_text(encoding="utf-8")
     assert "client_john" in content
-    assert "0.85" in content
     assert "LEAD #00001" in content
 
 

@@ -57,6 +57,14 @@ TECH_SIGNATURES = {
     "AI/LLM": [r"\bllm\b", r"\bgpt\b", r"\bopenai\b", r"\bclaude\b", r"\blangchain\b", r"\brag\b", r"\bvector db\b"],
 }
 
+JOB_BOARD_DOMAINS = {
+    "weworkremotely.com", "ycombinator.com", "news.ycombinator.com",
+    "indeed.com", "greenhouse.io", "lever.co", "ashbyhq.com",
+    "wellfound.com", "angel.co", "remoteok.com", "flexjobs.com",
+    "remoteok.io", "weworkremotely.co"
+}
+
+
 class EnrichmentEngine:
     """Extracts deep company profiles and metadata from raw posts with confidence vectors."""
 
@@ -68,11 +76,11 @@ class EnrichmentEngine:
         url = post.url or ""
         content_lower = content.lower()
 
-        # 1. Extract domain
+        # 1. Extract domain (ignoring job board aggregators)
         domain_val, domain_conf = self.extract_domain(url, content)
         
-        # 2. Extract company name
-        company_val, company_conf = self.extract_company_name(domain_val, post.author)
+        # 2. Extract actual hiring company name from content / title
+        company_val, company_conf = self.extract_company_name(domain_val, post.author, content)
 
         # 3. Extract socials
         socials_val, socials_conf = self.extract_social_links(content)
@@ -126,27 +134,44 @@ class EnrichmentEngine:
         }
 
     def extract_domain(self, url: str, content: str) -> tuple[Optional[str], float]:
-        all_text = f"{url} {content}"
-        matches = DOMAIN_REGEX.findall(all_text)
+        # 1. Search content for external company URLs (excluding social/job board hosts)
+        matches = DOMAIN_REGEX.findall(content)
+        excluded_hosts = JOB_BOARD_DOMAINS.union({"reddit.com", "discord.gg", "github.com", "twitter.com", "x.com", "t.me"})
         for d in matches:
             d_lower = d.lower()
-            if not any(excluded in d_lower for excluded in ["reddit.com", "discord.gg", "github.com", "twitter.com", "x.com", "t.me"]):
-                return d_lower, 0.9 # High confidence if found in text and not a generic host
-        
+            if not any(excluded in d_lower for excluded in excluded_hosts):
+                return d_lower, 0.9
+
+        # 2. Fall back to post URL if it is not a job board aggregator
         if url:
             parsed = urlparse(url)
-            netloc = parsed.netloc.replace("www.", "")
-            if netloc and not any(excluded in netloc.lower() for excluded in ["reddit.com", "discord.gg", "github.com", "twitter.com", "x.com", "t.me"]):
-                return netloc.lower(), 1.0 # Absolute confidence if it's the primary post URL
+            netloc = parsed.netloc.replace("www.", "").lower()
+            if netloc and not any(excluded in netloc for excluded in excluded_hosts):
+                return netloc, 1.0
+
         return None, 0.0
 
-    def extract_company_name(self, domain: Optional[str], author: str) -> tuple[str, float]:
-        if domain:
+    def extract_company_name(self, domain: Optional[str], author: str, content: str = "") -> tuple[str, float]:
+        # 1. Try extracting actual company name from first non-empty line or title pattern
+        if content:
+            lines = [l.strip() for l in content.splitlines() if l.strip()]
+            first_line = lines[0] if lines else content.strip()
+            # Matches patterns like "Stripe: Backend Engineer", "Laylo (YC S20) Is Hiring", "MapTiler: Location Services Engineer"
+            m = re.match(r"^([A-Za-z0-9\.\-\s]+?)(?:\s*(?:\([^)]+\))?\s*(?::|is hiring|Is Hiring|\-|\|))", first_line)
+            if m:
+                extracted = m.group(1).strip()
+                if len(extracted) > 1 and extracted.lower() not in {"new comment by", "ask hn", "who is hiring"}:
+                    return extracted, 0.9
+
+        # 2. Fall back to domain if domain is valid and not a job board
+        if domain and not any(jb in domain for jb in JOB_BOARD_DOMAINS):
             parts = domain.split(".")
             if parts:
                 return parts[0].capitalize(), 0.7
-        if author and not author.startswith("user_"):
+
+        if author and not author.startswith("user_") and author != "rss_publisher":
             return author, 0.3
+
         return "Unknown", 0.0
 
     def extract_social_links(self, content: str) -> tuple[Dict[str, str], float]:

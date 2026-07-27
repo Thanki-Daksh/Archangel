@@ -138,9 +138,9 @@ def test_format_lead_block():
     block = format_lead_block(post, evaluation, 42)
     assert "LEAD #00042" in block
     assert "test_user" in block
-    assert "python" in block
+    assert "Python" in block or "python" in block
     assert "reddit" in block
-    assert "END LEAD #00042" in block
+    assert "END CRM LEAD REPORT #00042" in block
 
 
 def test_swarm_file_writer_batch(tmp_path: Path):
@@ -161,5 +161,5 @@ def test_swarm_file_writer_batch(tmp_path: Path):
     writer.close()
 
     content = out_file.read_text(encoding="utf-8")
-    assert content.count("=== LEAD #") == 3
-    assert content.count("END LEAD #") == 3
+    assert content.count("ARCHANGEL CRM INTELLIGENCE LEAD #") == 3
+    assert content.count("END CRM LEAD REPORT #") == 3

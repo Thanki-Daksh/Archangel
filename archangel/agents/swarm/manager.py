@@ -88,7 +88,12 @@ class SwarmManager:
         self.is_running = False
 
         from archangel.agents.swarm.reporter import TelegramSwarmReporter
-        self.telegram_reporter = TelegramSwarmReporter() if self.telegram_enabled else None
+        # Initialize reporter; auto-enable if credentials exist or explicitly requested via --telegram
+        reporter_candidate = TelegramSwarmReporter()
+        if self.telegram_enabled or reporter_candidate.enabled:
+            self.telegram_reporter = reporter_candidate
+        else:
+            self.telegram_reporter = None
         
         if self.telegram_reporter and self.telegram_reporter.enabled:
             # Create a fire-and-forget task for sending reports to avoid blocking the bus
@@ -99,13 +104,21 @@ class SwarmManager:
         if self.telegram_reporter and self.telegram_reporter.enabled:
             enrichment = payload.get("enrichment")
             if enrichment:
-                asyncio.create_task(self.telegram_reporter.send_lead_intelligence_report(enrichment))
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self.telegram_reporter.send_lead_intelligence_report(enrichment))
+                except RuntimeError:
+                    pass
 
     async def run(self) -> None:
         """Executes the agent swarm for specified duration."""
         self.is_running = True
+
+        # Silence raw HTTP fetch loggers from cluttering terminal stdout above Rich Live Panel
+        for log_name in ["httpx", "httpcore", "urllib3", "requests", "duckduckgo_search", "curl_cffi", "twikit", "archangel.agents.scraper"]:
+            logging.getLogger(log_name).setLevel(logging.WARNING)
         
-        # Reset output stream log file for a fresh run starting from 0
+        # Reset output stream log file & pipeline deduplication memory for a fresh run starting from 0
         if self.output_path and self.reset_log:
             try:
                 self.output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -114,6 +127,8 @@ class SwarmManager:
                 logger.info("Cleared output log '%s' for fresh swarm run.", self.output_path)
             except Exception as e:
                 logger.warning("Could not reset output log '%s': %s", self.output_path, e)
+
+        self.pipeline.reset_run_state()
 
         target_objs = self.registry.resolve_targets(self.targets_input, leads_query=self.leads_query)
 
@@ -189,8 +204,8 @@ class SwarmManager:
                         )
                     )
 
-                    # Periodically update Telegram live dashboard every 2s
-                    if self.telegram_reporter and self.telegram_reporter.enabled and elapsed % 2 == 0:
+                    # Periodically update Telegram live dashboard every 1s (non-blocking task)
+                    if self.telegram_reporter and self.telegram_reporter.enabled:
                         m = self.pipeline.get_metrics()
                         ascii_tbl = build_swarm_monitor_ascii_table(
                             active_workers=len(self.pool.workers),
@@ -213,7 +228,7 @@ class SwarmManager:
                         hdr = f"⚔️ *Archangel 24/7 Agent Swarm Live (Workers: {len(self.pool.workers)})*"
                         if self.leads_query:
                             hdr += f"\n🎯 *Target Leads:* `{self.leads_query}`"
-                        await self.telegram_reporter.update_status(hdr, ascii_tbl)
+                        asyncio.create_task(self.telegram_reporter.update_status(hdr, ascii_tbl))
 
                     if self.duration_seconds > 0 and elapsed >= self.duration_seconds:
                         logger.info("Swarm reached target duration (%s). Initiating shutdown.", self.duration_str)

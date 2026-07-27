@@ -101,9 +101,14 @@ class OpportunityClassifier:
         self.map = OPPORTUNITY_MAP
 
     def evaluate(self, pains: List[PainCategory], health_score: int = 100) -> List[Opportunity]:
+        # Require explicit evidence: pains must have confidence >= 0.50
+        valid_pains = [p for p in pains if p.confidence >= 0.50]
+        if not valid_pains and health_score >= 60:
+            return []
+
         opportunities: Dict[str, Opportunity] = {}
         
-        for pain in pains:
+        for pain in valid_pains:
             for service, triggers in self.map.items():
                 if pain.name in triggers:
                     if service not in opportunities:
@@ -115,7 +120,7 @@ class OpportunityClassifier:
                     current_conf = opportunities[service].confidence
                     opportunities[service].confidence = current_conf + pain.confidence - (current_conf * pain.confidence)
 
-        # Inject Website Redesign hook if health score is low
+        # Inject Website Redesign hook if health score is low (< 60)
         if health_score < 60:
             if "Website Redesign & Performance Optimization" not in opportunities:
                 opportunities["Website Redesign & Performance Optimization"] = Opportunity(

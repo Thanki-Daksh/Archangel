@@ -44,7 +44,7 @@ def format_lead_block(
     raw_post_id: int = 0,
     lead_num: Optional[int] = None,
 ) -> str:
-    """Formats a canonical Lead object (or fallback RawPost) into Archangel V1.3's full CRM Intelligence Report."""
+    """Formats a canonical Lead object (or fallback RawPost) into Archangel V1.5's full CRM Intelligence Report."""
     now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     if lead_num is not None and lead_num > 0:
@@ -98,16 +98,12 @@ def format_lead_block(
     arr_range = revenue_data.get("estimated_arr_range", "Unspecified")
     budget_tier = revenue_data.get("budget_level", "Medium")
 
-    extracted_budget = (lead.evaluation or {}).get("extracted_budget")
-    if extracted_budget is None:
-        from archangel.agents.swarm.filter import extract_post_budget
+    budget_display = (lead.evaluation or {}).get("budget_formatted")
+    if not budget_display:
+        from archangel.agents.swarm.filter import extract_budget_profile
         full_text = getattr(post, "content", "") or ""
-        extracted_budget = extract_post_budget(full_text)
-
-    if extracted_budget and extracted_budget > 0:
-        budget_display = f"${extracted_budget:,.0f} USD"
-    else:
-        budget_display = "Unbudgeted / Flexible"
+        b_profile = extract_budget_profile(full_text)
+        budget_display = b_profile.formatted
 
     min_budget = (lead.evaluation or {}).get("min_budget")
     if min_budget and min_budget > 0:
@@ -125,12 +121,30 @@ def format_lead_block(
 
     raw_content = clean_html_text(post.content or "")
 
+    lead_type_str = str(getattr(lead, "lead_type", "unknown")).replace("LeadType.", "").upper()
+    sales_readiness = getattr(lead, "sales_readiness", lead.score)
+    opportunity_score = getattr(lead, "opportunity_score", lead.score)
+    buying_intent = getattr(lead, "buying_intent_score", 0.0)
+    hiring_signal = getattr(lead, "hiring_signal_score", 0.0)
+    company_quality = getattr(lead, "company_quality_score", 0.0)
+    budget_conf = getattr(lead, "budget_confidence", 0.05)
+    score_exp_list = getattr(lead, "score_explanation", [])
+    evidence_list = getattr(lead, "intent_evidence", [])
+
+    score_exp_str = "\n".join([f"  {line}" for line in score_exp_list]) if score_exp_list else "  Standard heuristic scoring"
+    evidence_str = "\n".join([f"  • {item}" for item in evidence_list]) if evidence_list else "  None detected"
+
+    diff_tier_str = str(getattr(lead, "difficulty_tier", "beginner")).replace("DifficultyTier.", "").upper()
+    diff_reasons = getattr(lead, "difficulty_reasons", [])
+    diff_reasons_str = ", ".join(diff_reasons) if diff_reasons else "No experience requirement listed on post"
+
     template = f"""==================================================
 === ARCHANGEL CRM INTELLIGENCE LEAD #{post_id:05d} ===
 ==================================================
 
 [1. IDENTITY]
 Lead ID: #{post_id:05d}
+Lead Type: {lead_type_str}
 Lifecycle Stage: {lead.lifecycle_stage.upper()}
 Generated At: {now_str}
 
@@ -170,7 +184,7 @@ Identified Pain Categories: {pains_str}
 Recommended Services: {opps_str}
 
 [10. COMMERCIAL & REVENUE ESTIMATE]
-Extracted Post Budget: {budget_display}
+Extracted Post Budget: {budget_display} (Confidence: {budget_conf * 100:.0f}%)
 Target Budget Filter: {filter_budget_display}
 Estimated ARR Range: {arr_range}
 Buying Power Tier: {budget_tier}
@@ -179,10 +193,22 @@ Buying Power Tier: {budget_tier}
 Outreach Difficulty: {outreach_diff}
 Platform Saturation: {competition_data.get("platform_saturation", 20.0):.0f}%
 
-[12. LEAD SCORING]
-Overall Score: {lead.score:.1f} / 100.0
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: {lead_type_str}
+Difficulty Tier: {diff_tier_str} ({diff_reasons_str})
+Sales Readiness: {sales_readiness:.1f} / 100.0
+Opportunity Score: {opportunity_score:.1f} / 100.0
+Buying Intent: {buying_intent:.1f} / 100.0
+Hiring Signal: {hiring_signal:.1f} / 100.0
+Company Quality: {company_quality:.1f} / 100.0
 Priority Tier: {lead.priority}
 Filter Confidence: {lead.confidence:.2f}
+
+Detected Intent Evidence:
+{evidence_str}
+
+Score Reasoning Breakdown:
+{score_exp_str}
 
 [13. RECOMMENDED PITCH ANGLE]
 Opening Angle: "{opening_line}"

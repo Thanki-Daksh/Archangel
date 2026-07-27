@@ -487,6 +487,18 @@ class StoragePipeline:
         await self.enricher.start()
         logger.info("StoragePipeline started.")
 
+    def reset_run_state(self) -> None:
+        """Resets run counters and deduplication caches for a fresh run starting at 0."""
+        self.processor.qualified_count = 0
+        self.processor.processed_count = 0
+        self.processor.deduped_count = 0
+        self.processor._seen_urls.clear()
+        self.processor._seen_content_hashes.clear()
+        self.writer.total_flushed = 0
+        self.writer.successful_writes = 0
+        self.writer.failed_writes = 0
+        logger.info("Reset StoragePipeline deduplication memory and counters for fresh run.")
+
     async def stop(self) -> None:
         """Graceful shutdown: stop processor first (no new leads), then drain writer."""
         await self.processor.stop()

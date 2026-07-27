@@ -21,7 +21,8 @@ Thumbs.db
 
 # Project runtime
 logs/
-data/*.db
+data/*.db*
+data/*.log
 data/*.json
 data/*.csv
 data/*.tmp

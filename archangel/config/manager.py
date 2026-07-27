@@ -95,3 +95,9 @@ class ConfigManager:
                     path.unlink()
                 except Exception as exc:
                     logger.warning("Could not delete %s: %s", path, exc)
+
+
+def load_config() -> Dict[str, Any]:
+    """Helper returning persistent configuration dict from ConfigManager."""
+    mgr = ConfigManager()
+    return mgr.load("config.json")
