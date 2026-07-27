@@ -736,7 +736,7 @@ def a_s_subcmd(duration: str, output: str, targets: str, workers: int, leads_que
 @click.option("--telegram", is_flag=True, help="Configure Telegram bot credentials only.")
 @click.option("--providers", is_flag=True, help="Configure AI Provider credentials only.")
 def setup_cli_cmd(reset: bool, telegram: bool, providers: bool) -> None:
-    """Run interactive Archangel V1.3 Setup Wizard."""
+    """Run interactive Archangel V1.5 Setup Wizard."""
     from archangel.cli.handlers import cmd_setup
     cmd_setup(_console, reset=reset, telegram=telegram, providers=providers)
 

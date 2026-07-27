@@ -1,4 +1,4 @@
-# ⚔️ Archangel V1.3
+# ⚔️ Archangel V1.5
 
 > Autonomous AI-powered Lead Intelligence Platform
 

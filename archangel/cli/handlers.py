@@ -913,7 +913,7 @@ def cmd_setup(
     providers: bool = False,
     non_interactive: bool = False,
 ) -> bool:
-    """Runs the interactive Archangel V1.3 Setup Wizard."""
+    """Runs the interactive Archangel V1.5 Setup Wizard."""
     from archangel.config import ConfigManager
     cfg_mgr = ConfigManager()
 
@@ -922,7 +922,7 @@ def cmd_setup(
         console.print("[bold yellow]🔄 Persistent Archangel configuration reset (~/.archangel/).[/]")
 
     console.print()
-    console.print(Panel.fit("[bold cyan]⚔ ARCHANGEL V1.3 INTERACTIVE SETUP WIZARD[/]\n[italic dim]Configure your platform, AI keys, Telegram bot, and worker options.[/]", border_style="cyan"))
+    console.print(Panel.fit("[bold cyan]⚔ ARCHANGEL V1.5 INTERACTIVE SETUP WIZARD[/]\n[italic dim]Configure your platform, AI keys, Telegram bot, and worker options.[/]", border_style="cyan"))
 
     is_full_wizard = not (telegram or providers)
 
