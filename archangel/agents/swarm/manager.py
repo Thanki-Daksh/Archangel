@@ -94,6 +94,8 @@ class SwarmManager:
             max_workers=self.max_workers,
         )
         self.is_running = False
+        self._last_telegram_update: float = 0.0
+        self._telegram_update_task: Optional[asyncio.Task] = None
 
         from archangel.agents.swarm.reporter import TelegramSwarmReporter
         # Initialize reporter; auto-enable if credentials exist or explicitly requested via --telegram
@@ -119,34 +121,24 @@ class SwarmManager:
                     pass
 
     async def run(self) -> None:
-        """Executes the agent swarm for specified duration."""
+        """Runs the agent swarm lifespan loop with clean termination and signals."""
         self.is_running = True
 
-        # Silence raw HTTP fetch loggers from cluttering terminal stdout above Rich Live Panel
-        for log_name in ["httpx", "httpcore", "urllib3", "requests", "duckduckgo_search", "curl_cffi", "twikit", "archangel.agents.scraper"]:
-            logging.getLogger(log_name).setLevel(logging.WARNING)
-        
-        # Reset output stream log file & pipeline deduplication memory for a fresh run starting from 0
-        if self.output_path and self.reset_log:
-            try:
-                self.output_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(self.output_path, "w", encoding="utf-8") as f:
-                    f.truncate(0)
-                logger.info("Cleared output log '%s' for fresh swarm run.", self.output_path)
-            except Exception as e:
-                logger.warning("Could not reset output log '%s': %s", self.output_path, e)
+        # Clear existing output file if requested
+        if self.reset_log and self.output_path.exists():
+            self.output_path.unlink()
 
-        self.pipeline.reset_run_state()
+        targets = self.registry.resolve_targets(self.targets_input, leads_query=self.leads_query)
+        if not targets:
+            logger.error("No valid targets resolved for input: %s", self.targets_input)
+            self.is_running = False
+            return
 
-        target_objs = self.registry.resolve_targets(self.targets_input, leads_query=self.leads_query)
-
-        logger.info("==================================================")
-        logger.info("⚔ ARCHANGEL 24/7 AGENT SWARM OPERATIONAL")
-        if self.leads_query:
-            logger.info("  Leads Target Query: '%s'", self.leads_query)
-        logger.info("  Active Workers: %d | Duration: %s", len(target_objs), self.duration_str)
-        logger.info("  Output Stream: %s", self.output_path)
-        logger.info("==================================================")
+        target_objs = targets[:self.max_workers]
+        logger.info(
+            "SwarmManager starting pipeline & worker pool (%d active workers, duration: %s)",
+            len(target_objs), self.duration_str
+        )
 
         # Start pipeline consumers BEFORE workers begin producing
         await self.pipeline.start()
@@ -212,31 +204,38 @@ class SwarmManager:
                         )
                     )
 
-                    # Periodically update Telegram live dashboard every 1s (non-blocking task)
+                    # Periodically update Telegram live dashboard every 3s (guarded non-blocking task)
                     if self.telegram_reporter and self.telegram_reporter.enabled:
-                        m = self.pipeline.get_metrics()
-                        ascii_tbl = build_swarm_monitor_ascii_table(
-                            active_workers=len(self.pool.workers),
-                            max_workers=max(1000, self.max_workers),
-                            elapsed_str=format_seconds(elapsed),
-                            target_str=self.duration_str,
-                            output_path=str(self.output_path),
-                            scanned_count=self.pool.scanned_count,
-                            qualified_count=self.pool.qualified_leads_count,
-                            disc_queue=f"{m.discovery_queue_size:,} / {m.discovery_queue_capacity:,}",
-                            stor_queue=f"{m.storage_queue_size:,} / {m.storage_queue_capacity:,}",
-                            avg_size=m.avg_batch_size,
-                            avg_flush_ms=m.avg_flush_duration_ms,
-                            writes_ok=m.successful_writes,
-                            writes_failed=m.failed_writes,
-                            persisted_count=m.total_flushed,
-                            backpressure_warnings=m.backpressure_warnings,
-                            min_budget=format_budget_display(self.budget_str),
-                        )
-                        hdr = f"⚔️ *Archangel 24/7 Agent Swarm Live (Workers: {len(self.pool.workers)})*"
-                        if self.leads_query:
-                            hdr += f"\n🎯 *Target Leads:* `{self.leads_query}`"
-                        asyncio.create_task(self.telegram_reporter.update_status(hdr, ascii_tbl))
+                        now_mono = time.monotonic()
+                        if (now_mono - self._last_telegram_update >= 3.0) and (
+                            self._telegram_update_task is None or self._telegram_update_task.done()
+                        ):
+                            self._last_telegram_update = now_mono
+                            m = self.pipeline.get_metrics()
+                            ascii_tbl = build_swarm_monitor_ascii_table(
+                                active_workers=len(self.pool.workers),
+                                max_workers=max(1000, self.max_workers),
+                                elapsed_str=format_seconds(elapsed),
+                                target_str=self.duration_str,
+                                output_path=str(self.output_path),
+                                scanned_count=self.pool.scanned_count,
+                                qualified_count=self.pool.qualified_leads_count,
+                                disc_queue=f"{m.discovery_queue_size:,} / {m.discovery_queue_capacity:,}",
+                                stor_queue=f"{m.storage_queue_size:,} / {m.storage_queue_capacity:,}",
+                                avg_size=m.avg_batch_size,
+                                avg_flush_ms=m.avg_flush_duration_ms,
+                                writes_ok=m.successful_writes,
+                                writes_failed=m.failed_writes,
+                                persisted_count=m.total_flushed,
+                                backpressure_warnings=m.backpressure_warnings,
+                                min_budget=format_budget_display(self.budget_str),
+                            )
+                            hdr = f"⚔️ *Archangel 24/7 Agent Swarm Live (Workers: {len(self.pool.workers)})*"
+                            if self.leads_query:
+                                hdr += f"\n🎯 *Target Leads:* `{self.leads_query}`"
+                            self._telegram_update_task = asyncio.create_task(
+                                self.telegram_reporter.update_status(hdr, ascii_tbl)
+                            )
 
                     if self.duration_seconds > 0 and elapsed >= self.duration_seconds:
                         logger.info("Swarm reached target duration (%s). Initiating shutdown.", self.duration_str)

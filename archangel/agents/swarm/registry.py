@@ -82,13 +82,14 @@ class PlatformRegistry:
                     q_clean = "+".join(iq.query.strip().split())
                     # Distribute across 25 tech & freelance subreddits with multiple sort angles
                     sub = subs[i % len(subs)]
-                    resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/search/.json?q={q_clean}&sort=new&limit=100", "reddit", 1))
-                    resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/search/.json?q={q_clean}&sort=relevance&limit=100", "reddit", 1))
-                    resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/all/search/.json?q={q_clean}&sort=new&limit=100", "reddit", 1))
-                    resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/all/search/.json?q={q_clean}&t=month&sort=relevance&limit=100", "reddit", 1))
-                    resolved.append(SwarmTarget("x", f"agent-reach:x:{q_clean}", "reach", 1))
+                    resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/search/.json?q={q_clean}&sort=new&limit=100", "reddit", 15))
+                    resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/search.rss?q={q_clean}&sort=new", "reddit", 15))
+                    resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/search/.json?q={q_clean}&sort=relevance&limit=100", "reddit", 15))
+                    resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/all/search/.json?q={q_clean}&sort=new&limit=100", "reddit", 15))
+                    resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/all/search/.json?q={q_clean}&t=month&sort=relevance&limit=100", "reddit", 15))
+                    resolved.append(SwarmTarget("x", f"agent-reach:x:{q_clean}", "reach", 10))
                     if i % 2 == 0:
-                        resolved.append(SwarmTarget("github", f"https://api.github.com/search/issues?q={q_clean}+state:open&per_page=100", "reach", 2))
+                        resolved.append(SwarmTarget("github", f"https://api.github.com/search/issues?q={q_clean}+state:open&per_page=100", "reach", 10))
 
         # If default or "all", expand into 170+ parallel streams
         if not raw_list or "all" in [x.lower() for x in raw_list]:
