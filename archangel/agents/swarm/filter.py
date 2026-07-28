@@ -419,19 +419,20 @@ QUERY_STOP_WORDS = {
 
 
 def parse_multi_leads_queries(query_str: Optional[str]) -> List[str]:
-    """Parses single or multi-topic lead queries separated by &&, &, AND, or commas.
+    """Parses single or multi-topic lead queries separated by &&, &, AND, +, |, or commas.
     
     Examples:
         - 'website development' -> ['website development']
         - '"website development" && "custom bot"' -> ['website development', 'custom bot']
-        - '"website development" & "custom bot"' -> ['website development', 'custom bot']
+        - '"website development" "&" "custom bot"' -> ['website development', 'custom bot']
         - 'website development AND custom bot' -> ['website development', 'custom bot']
-        - 'website development, custom bot' -> ['website development', 'custom bot']
+        - 'website + custom bot' -> ['website', 'custom bot']
+        - 'website, custom bot' -> ['website', 'custom bot']
     """
     if not query_str or not query_str.strip():
         return []
 
-    raw_parts = re.split(r"\s*(?:&&|&|\bAND\b|,)\s*", query_str.strip(), flags=re.IGNORECASE)
+    raw_parts = re.split(r"\s*(?:&&|&|\bAND\b|,|\+|\*|\|)\s*", query_str.strip(), flags=re.IGNORECASE)
     cleaned: List[str] = []
     for p in raw_parts:
         item = p.strip().strip('"\'').strip()

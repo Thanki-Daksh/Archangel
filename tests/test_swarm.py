@@ -276,3 +276,38 @@ async def test_swarm_manager_short_run(tmp_path: Path):
 
     await manager.run()
     assert out_file.exists()
+
+
+def test_reddit_token_pool(monkeypatch):
+    from archangel.agents.swarm.workers.reddit_auth import RedditTokenPool
+    
+    # Test comma-separated parsing
+    monkeypatch.setenv("REDDIT_CLIENT_IDS", "id1, id2, id3")
+    monkeypatch.setenv("REDDIT_CLIENT_SECRETS", "sec1, sec2, sec3")
+
+    pool = RedditTokenPool()
+    pool.reload_credentials()
+
+    assert len(pool.credentials) == 3
+    assert pool.credentials[0] == ("id1", "sec1")
+    assert pool.credentials[1] == ("id2", "sec2")
+    assert pool.credentials[2] == ("id3", "sec3")
+
+    # Mock bearer token fetching
+    def mock_fetch(self, cid, sec):
+        return f"token_{cid}"
+
+    monkeypatch.setattr(RedditTokenPool, "_fetch_bearer_token", mock_fetch)
+
+    hdr1 = pool.get_auth_header()
+    assert hdr1 == {"Authorization": "bearer token_id1"}
+
+    hdr2 = pool.get_auth_header()
+    assert hdr2 == {"Authorization": "bearer token_id2"}
+
+    hdr3 = pool.get_auth_header()
+    assert hdr3 == {"Authorization": "bearer token_id3"}
+
+    # Wrap around to first key
+    hdr4 = pool.get_auth_header()
+    assert hdr4 == {"Authorization": "bearer token_id1"}

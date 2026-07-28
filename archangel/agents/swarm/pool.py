@@ -10,6 +10,7 @@ from archangel.agents.swarm.workers.base import BasePlatformWorker
 from archangel.agents.swarm.workers.reddit_worker import RedditWorker
 from archangel.agents.swarm.workers.rss_worker import RSSStreamWorker
 from archangel.agents.swarm.workers.reach_worker import AgentReachWorker
+from archangel.agents.swarm.workers.web_search_worker import WebSearchWorker
 from archangel.agents.swarm.workers.custom_script_worker import CustomScriptWorker
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,8 @@ class SwarmPool:
             return RSSStreamWorker(target)
         elif target.worker_type == "reach":
             return AgentReachWorker(target)
+        elif target.worker_type in ("web", "web_search"):
+            return WebSearchWorker(target)
         else:
             return CustomScriptWorker(target)
 

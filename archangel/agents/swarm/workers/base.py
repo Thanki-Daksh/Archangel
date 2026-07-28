@@ -20,7 +20,7 @@ class BasePlatformWorker(ABC):
     @classmethod
     def get_executor(cls) -> ThreadPoolExecutor:
         if cls._shared_executor is None:
-            cls._shared_executor = ThreadPoolExecutor(max_workers=128, thread_name_prefix="swarm-net")
+            cls._shared_executor = ThreadPoolExecutor(max_workers=1000, thread_name_prefix="swarm-net")
         return cls._shared_executor
 
     def __init__(self, target: SwarmTarget) -> None:
@@ -51,13 +51,15 @@ class BasePlatformWorker(ABC):
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.warning("Worker %s encountered error on %s: %s. Backing off %.1fs",
-                               self.target.platform, self.target.target_url, e, backoff)
+                logger.debug("Worker %s encountered error on %s: %s. Backing off %.1fs",
+                             self.target.platform, self.target.target_url, e, backoff)
                 try:
+                    import random
                     await asyncio.sleep(backoff)
                 except asyncio.CancelledError:
                     break
-                backoff = min(backoff * 2.0, 60.0)
+                import random
+                backoff = min(backoff * 2.5 + random.uniform(2.0, 10.0), 120.0)
 
             if not self.is_running:
                 break

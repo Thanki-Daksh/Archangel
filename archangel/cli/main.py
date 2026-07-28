@@ -201,7 +201,7 @@ class _SwarmCommand(click.Command):
                     combined: list[str] = []
                     for tok in l_tokens:
                         t_str = tok.strip()
-                        if t_str in ("&", "&&", "+", "and", "AND", ","):
+                        if t_str in ("&", "&&", "+", "and", "AND", ",", "|", "*"):
                             combined.append("&&")
                         else:
                             combined.append(t_str)

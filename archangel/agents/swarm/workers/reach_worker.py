@@ -25,8 +25,14 @@ class AgentReachWorker(BasePlatformWorker):
             scraper = SmartScraper()
             try:
                 if "x" in platform or "twitter" in platform:
-                    query = "looking for developer OR hiring developer"
-                    results = scraper.fetch_x_search_via_ddg(query, max_results=5)
+                    # Extract query from target URL (e.g. agent-reach:x:looking+for+developer)
+                    if "agent-reach:x:" in target:
+                        q_raw = target.replace("agent-reach:x:", "").strip()
+                        query = " ".join(q_raw.split("+"))
+                    else:
+                        query = target if target.startswith("http") else f"{target} hiring OR looking"
+
+                    results = scraper.fetch_x_search_via_ddg(query, max_results=10)
                     for r in results:
                         u = r.get("url", "")
                         if u and "http" in u:
@@ -43,20 +49,28 @@ class AgentReachWorker(BasePlatformWorker):
                 elif "github" in platform:
                     import urllib.request
                     import json
+
+                    if target.startswith("http"):
+                        gh_url = target
+                    else:
+                        q_raw = target.replace("agent-reach:github:", "").strip()
+                        q_clean = "+".join(q_raw.split())
+                        gh_url = f"https://api.github.com/search/issues?q={q_clean}+state:open&per_page=20"
+
                     req = urllib.request.Request(
-                        "https://api.github.com/search/issues?q=label:hiring+state:open&per_page=10",
-                        headers={"User-Agent": "ArchangelSwarm/1.0"}
+                        gh_url,
+                        headers={"User-Agent": "ArchangelSwarm/1.0", "Accept": "application/vnd.github.v3+json"}
                     )
-                    with urllib.request.urlopen(req, timeout=4) as resp:
+                    with urllib.request.urlopen(req, timeout=5.0) as resp:
                         if resp.status == 200:
                             data = json.loads(resp.read().decode("utf-8"))
-                            for item in data.get("items", [])[:5]:
+                            for item in data.get("items", [])[:15]:
                                 posts.append(
                                     RawPost(
                                         source="github",
                                         channel="github_issues",
                                         author=item.get("user", {}).get("login", "gh_user"),
-                                        content=f"{item.get('title', '')}\n\n{item.get('body', '')[:500]}",
+                                        content=f"{item.get('title', '')}\n\n{item.get('body', '')[:1000]}",
                                         url=item.get("html_url", ""),
                                     )
                                 )

@@ -122,7 +122,16 @@ class SwarmManager:
 
     async def run(self) -> None:
         """Runs the agent swarm lifespan loop with clean termination and signals."""
-        self.is_running = True
+        root_logger = logging.getLogger()
+        arch_logger = logging.getLogger("archangel")
+        old_root_level = root_logger.level
+        old_arch_level = arch_logger.level
+
+        # Mute console text log output so Rich Live Panel maintains 100% clean terminal rendering
+        root_logger.setLevel(logging.CRITICAL)
+        arch_logger.setLevel(logging.CRITICAL)
+        for log_name in ["httpx", "httpcore", "urllib3", "requests", "duckduckgo_search", "curl_cffi", "twikit", "archangel.agents.scraper", "archangel.agents.swarm.workers"]:
+            logging.getLogger(log_name).setLevel(logging.CRITICAL)
 
         # Clear existing output file if requested
         if self.reset_log and self.output_path.exists():
@@ -243,6 +252,9 @@ class SwarmManager:
         except asyncio.CancelledError:
             logger.info("Swarm received cancellation signal.")
         finally:
+            # Restore logger levels upon shutdown
+            root_logger.setLevel(old_root_level)
+            arch_logger.setLevel(old_arch_level)
             # pool.stop() internally calls pipeline.stop() for graceful drain
             await self.pool.stop()
             self.is_running = False

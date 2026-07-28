@@ -38,12 +38,26 @@ class RedditWorker(BasePlatformWorker):
             sep = "&" if "?" in url else "?"
             url = f"{url}{sep}after={self.after_cursor}"
 
+        fetch_url = url
+
         headers = {
             "User-Agent": random.choice(USER_AGENTS),
             "Accept": "application/rss+xml, application/xml, application/json, text/plain, */*" if is_rss else "application/json, text/plain, */*",
             "Accept-Language": "en-US,en;q=0.9",
         }
-        req = urllib.request.Request(url, headers=headers)
+        
+        # Multi-Key OAuth token pool rotation (if keys configured in .env)
+        from archangel.agents.swarm.workers.reddit_auth import RedditTokenPool
+        auth_hdr = RedditTokenPool.get_instance().get_auth_header()
+        if auth_hdr:
+            headers.update(auth_hdr)
+        else:
+            import os
+            reddit_token = os.getenv("REDDIT_ACCESS_TOKEN") or os.getenv("REDDIT_BEARER_TOKEN")
+            if reddit_token:
+                headers["Authorization"] = f"bearer {reddit_token}"
+
+        req = urllib.request.Request(fetch_url, headers=headers)
 
         loop = asyncio.get_event_loop()
 
@@ -101,7 +115,7 @@ class RedditWorker(BasePlatformWorker):
                             return posts
                     elif resp.status in (429, 403, 500, 502, 503):
                         self.after_cursor = None
-                        raise urllib.error.HTTPError(url, resp.status, f"HTTP {resp.status} Rate Limit / Access Denied", resp.headers, None)
+                        raise urllib.error.HTTPError(fetch_url, resp.status, f"HTTP {resp.status} Rate Limit / Access Denied", resp.headers, None)
             except urllib.error.HTTPError as http_err:
                 self.after_cursor = None
                 raise http_err
