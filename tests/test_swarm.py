@@ -55,6 +55,25 @@ def test_extract_budget_profile_currencies():
     assert b4.min_amount == 80.0
 
 
+def test_parse_budget_amount_currencies():
+    from archangel.agents.swarm.filter import parse_budget_amount
+
+    assert parse_budget_amount("$1000") == 1000.0
+    assert parse_budget_amount("1000inr") == 11.5
+    assert parse_budget_amount("1000eur") == 1080.0
+
+
+def test_format_budget_display():
+    from archangel.agents.swarm.filter import format_budget_display
+
+    assert format_budget_display("1000inr") == "₹1,000+"
+    assert format_budget_display("₹50000") == "₹50,000+"
+    assert format_budget_display("1000eur") == "€1,000+"
+    assert format_budget_display("1000gbp") == "£1,000+"
+    assert format_budget_display("1000usd") == "$1,000+"
+    assert format_budget_display("$1000") == "$1,000+"
+
+
 def test_parse_multi_leads_queries():
     from archangel.agents.swarm.filter import parse_multi_leads_queries
 

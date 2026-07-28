@@ -72,17 +72,28 @@ def filter_by_difficulty(lead_difficulty: str, allowed_tiers: set[str]) -> bool:
 
 
 def parse_budget_amount(budget_str: Optional[str]) -> Optional[float]:
-    """Parses budget strings like '$1000', '50h', '50/h', '50/ph', '5k', '5km', '150ky', '1k-5k' into a normalized float value."""
+    """Parses budget strings like '$1000', '1000inr', '₹50000', '50h', '5k' into a normalized USD float value."""
     if not budget_str or not str(budget_str).strip():
         return None
 
     clean = str(budget_str).strip().lower().replace(",", "").replace("$", "").replace(" ", "")
 
+    fx_rate = 1.0
+    if "inr" in clean or "rs" in clean or "₹" in clean or "rupees" in clean or "rupee" in clean:
+        fx_rate = 0.0115  # 1000 INR = ~$11.50 USD
+        clean = re.sub(r"inr|rs\.?|₹|rupees?", "", clean)
+    elif "eur" in clean or "€" in clean or "euros" in clean or "euro" in clean:
+        fx_rate = 1.08
+        clean = re.sub(r"eur|€|euros?", "", clean)
+    elif "gbp" in clean or "£" in clean or "pounds" in clean or "pound" in clean:
+        fx_rate = 1.28
+        clean = re.sub(r"gbp|£|pounds?", "", clean)
+
     # Hourly shorthand e.g. "50h", "50/h", "50/ph", "50hr"
     m_h = re.match(r"^(\d+(?:\.\d+)?)\s*(?:/|\bper\b)?\s*(?:h|ph|hr|hour|hourly)$", clean)
     if m_h:
         hourly_rate = float(m_h.group(1))
-        return hourly_rate * 80.0  # Normalized 80-hour baseline ($50/hr -> $4,000)
+        return hourly_rate * 80.0 * fx_rate  # Normalized 80-hour baseline ($50/hr -> $4,000)
 
     # Monthly shorthand e.g. "5m", "5km", "5k/m", "5000/mo"
     m_m = re.match(r"^(\d+(?:\.\d+)?)\s*k?\s*(?:/|\bper\b)?\s*(?:m|mo|month|monthly)$", clean)
@@ -90,7 +101,7 @@ def parse_budget_amount(budget_str: Optional[str]) -> Optional[float]:
         val = float(m_m.group(1))
         if "k" in clean:
             val *= 1000.0
-        return val
+        return val * fx_rate
 
     # Yearly shorthand e.g. "150y", "150ky", "150k/y", "150k/yr"
     m_y = re.match(r"^(\d+(?:\.\d+)?)\s*k?\s*(?:/|\bper\b)?\s*(?:y|yr|year|annually)$", clean)
@@ -98,7 +109,7 @@ def parse_budget_amount(budget_str: Optional[str]) -> Optional[float]:
         val = float(m_y.group(1))
         if "k" in clean or val < 1000:
             val *= 1000.0
-        return val
+        return val * fx_rate
 
     # Range check e.g. "1k-5k" or "1000-5000"
     m_range = re.match(r"^(\d+(?:\.\d+)?)\s*k?\s*-\s*(\d+(?:\.\d+)?)\s*k?$", clean)
@@ -106,20 +117,46 @@ def parse_budget_amount(budget_str: Optional[str]) -> Optional[float]:
         v1_str, v2_str = m_range.group(1), m_range.group(2)
         v1 = float(v1_str) * (1000.0 if "k" in v1_str or ("k" in clean and not v1_str.replace(".","").isdigit()) else 1.0)
         v2 = float(v2_str) * (1000.0 if "k" in clean else 1.0)
-        return min(v1, v2)
+        return min(v1, v2) * fx_rate
 
     # Check 'k' notation e.g. "5k", "2.5k", "10k"
     m_k = re.match(r"^(\d+(?:\.\d+)?)\s*k$", clean)
     if m_k:
-        return float(m_k.group(1)) * 1000.0
+        return float(m_k.group(1)) * 1000.0 * fx_rate
 
     try:
-        return float(clean)
+        return float(clean) * fx_rate
     except ValueError:
         m2 = re.search(r"(\d+(?:\.\d+)?)", clean)
         if m2:
-            return float(m2.group(1))
+            return float(m2.group(1)) * fx_rate
     return None
+
+
+def format_budget_display(budget_str: Optional[str]) -> str:
+    """Formats raw budget CLI string with explicit currency symbol e.g. '1000inr' -> '₹1,000+'."""
+    if not budget_str or not str(budget_str).strip():
+        return "Unfiltered / All"
+
+    clean = str(budget_str).strip().lower().replace(",", "").replace(" ", "")
+
+    if any(k in clean for k in ("inr", "rs", "₹", "rupees", "rupee")):
+        sym = "₹"
+    elif any(k in clean for k in ("eur", "€", "euros", "euro")):
+        sym = "€"
+    elif any(k in clean for k in ("gbp", "£", "pounds", "pound")):
+        sym = "£"
+    else:
+        sym = "$"
+
+    m = re.search(r"(\d+(?:\.\d+)?)", clean)
+    if m:
+        num = float(m.group(1))
+        if "k" in clean:
+            num *= 1000.0
+        return f"{sym}{num:,.0f}+"
+
+    return f"{sym}{budget_str.strip()}+"
 
 
 from dataclasses import dataclass
@@ -303,7 +340,7 @@ def extract_post_budget_multi_currency(text: str) -> tuple[Optional[float], str,
 
     # 1. First check explicit non-USD currencies (require symbol or code)
     non_usd_patterns = [
-        ("INR", r"(?:₹|\brs\.?\b|\binr\b|\brupees?\b)", 0.012, "₹"),
+        ("INR", r"(?:₹|\brs\.?\b|\binr\b|\brupees?\b)", 0.0115, "₹"),
         ("EUR", r"(?:€|\beur\b|\beuros?\b)", 1.08, "€"),
         ("GBP", r"(?:£|\bgbp\b|\bpounds?\b)", 1.28, "£"),
     ]

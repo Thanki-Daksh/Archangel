@@ -33,12 +33,8 @@ def render_swarm_dashboard(
     table.add_column(style="bold cyan")
     table.add_column(style="green")
 
-    if budget_str:
-        from archangel.agents.swarm.filter import parse_budget_amount
-        amt = parse_budget_amount(budget_str)
-        budget_display = f"${amt:,.0f}+" if amt else f"{budget_str}+"
-    else:
-        budget_display = "Unfiltered / All"
+    from archangel.agents.swarm.filter import format_budget_display
+    budget_display = format_budget_display(budget_str)
 
     table.add_row("Active Workers:", f"{active_workers} / {max_workers}")
     table.add_row("Runtime Elapsed:", f"{elap_str} (Target: {dur_str})")

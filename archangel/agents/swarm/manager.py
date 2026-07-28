@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 from archangel.agents.swarm.registry import PlatformRegistry
-from archangel.agents.swarm.filter import TokenFreeFilter
+from archangel.agents.swarm.filter import TokenFreeFilter, format_budget_display
 from archangel.agents.swarm.pipeline import StoragePipeline
 from archangel.agents.swarm.pool import SwarmPool
 
@@ -225,7 +225,7 @@ class SwarmManager:
                             writes_failed=m.failed_writes,
                             persisted_count=m.total_flushed,
                             backpressure_warnings=m.backpressure_warnings,
-                            min_budget=f"${self.budget_str}+" if self.budget_str else "Unfiltered / All",
+                            min_budget=format_budget_display(self.budget_str),
                         )
                         hdr = f"⚔️ *Archangel 24/7 Agent Swarm Live (Workers: {len(self.pool.workers)})*"
                         if self.leads_query:
