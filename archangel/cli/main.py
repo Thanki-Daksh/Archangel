@@ -162,26 +162,66 @@ class _SwarmCommand(click.Command):
     """Custom Click command that transforms short flag aliases in args before option parsing."""
 
     def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
-        new_args: list[str] = []
+        norm_args: list[str] = []
         for arg in args:
             if arg in ("-w-i", "--w-i", "-wi", "--wi", "-w_i", "--w_i"):
-                new_args.append("--write-interval")
+                norm_args.append("--write-interval")
             elif arg == "--w":
-                new_args.append("-w")
+                norm_args.append("-w")
             elif arg == "--f":
-                new_args.append("-f")
+                norm_args.append("-f")
             elif arg == "--l":
-                new_args.append("-l")
+                norm_args.append("-l")
             elif arg == "--t":
-                new_args.append("-t")
+                norm_args.append("-t")
             elif arg == "--d":
-                new_args.append("-d")
+                norm_args.append("-d")
             elif arg in ("--c", "-c"):
-                new_args.append("-c")
+                norm_args.append("-c")
+            elif arg == "--b":
+                norm_args.append("-b")
             elif arg == "--o":
-                new_args.append("-o")
+                norm_args.append("-o")
+            else:
+                norm_args.append(arg)
+
+        lead_flags = {"-l", "--leads", "--query"}
+        new_args: list[str] = []
+        i = 0
+        while i < len(norm_args):
+            arg = norm_args[i]
+            if arg in lead_flags:
+                new_args.append(arg)
+                i += 1
+                l_tokens: list[str] = []
+                while i < len(norm_args) and not norm_args[i].startswith("-"):
+                    l_tokens.append(norm_args[i])
+                    i += 1
+                if l_tokens:
+                    combined: list[str] = []
+                    for tok in l_tokens:
+                        t_str = tok.strip()
+                        if t_str in ("&", "&&", "+", "and", "AND", ","):
+                            combined.append("&&")
+                        else:
+                            combined.append(t_str)
+
+                    final_items: list[str] = []
+                    for item in combined:
+                        if item == "&&":
+                            final_items.append("&&")
+                        else:
+                            if final_items and final_items[-1] != "&&":
+                                final_items.append("&&")
+                            final_items.append(item)
+
+                    final_str = " ".join(final_items)
+                    final_str = re.sub(r"\s*&&\s*", " && ", final_str).strip()
+                    new_args.append(final_str)
             else:
                 new_args.append(arg)
+                i += 1
+
         return super().parse_args(ctx, new_args)
 
 

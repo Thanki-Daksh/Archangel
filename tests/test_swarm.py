@@ -71,6 +71,25 @@ def test_parse_multi_leads_queries():
     assert q4 == ["website development", "custom bot"]
 
 
+def test_swarm_command_parse_args():
+    import click
+    from archangel.cli.main import swarm_cmd
+
+    ctx = click.Context(swarm_cmd)
+
+    # Test space-separated quoted args with '&'
+    swarm_cmd.parse_args(ctx, ["-l", "looking for website developer", "&", "need automation", "-f", "1-5d", "-c", "0", "-b", "1000inr"])
+    assert ctx.params["leads_query"] == "looking for website developer && need automation"
+    assert ctx.params["fresh"] == "1-5d"
+    assert ctx.params["comments"] == "0"
+    assert ctx.params["budget"] == "1000inr"
+
+    # Test space-separated quoted args without explicit operator
+    ctx2 = click.Context(swarm_cmd)
+    swarm_cmd.parse_args(ctx2, ["-l", "looking for website developer", "need automation", "-f", "1-5d"])
+    assert ctx2.params["leads_query"] == "looking for website developer && need automation"
+
+
 def test_parse_comments_range():
     from archangel.agents.swarm.filter import parse_comments_range
 
