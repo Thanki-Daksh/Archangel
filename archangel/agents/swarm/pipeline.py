@@ -123,6 +123,8 @@ class LeadProcessor:
             try:
                 self.processed_count += 1
                 await self._process_post(post)
+                if self.processed_count % 10 == 0:
+                    await asyncio.sleep(0)
             except Exception as exc:
                 logger.error("LeadProcessor error processing post: %s", exc)
             finally:
@@ -350,11 +352,22 @@ class BatchWriter:
 # EnrichmentProcessor — consumes stored posts, enriches, and emits CRM lead blocks
 # ---------------------------------------------------------------------------
 
+PRIORITY_ORDER = {"HIGH": 3, "MEDIUM": 2, "LOW": 1, "ALL": 0}
+
+
 class EnrichmentProcessor:
     """Async consumer that runs deep intelligence extraction and emits completed CRM lead blocks."""
 
-    def __init__(self, enrichment_queue: asyncio.Queue, output_path: Optional[Path] = None):
+    def __init__(
+        self,
+        enrichment_queue: asyncio.Queue,
+        output_path: Optional[Path] = None,
+        min_score: float = 0.0,
+        min_priority: str = "ALL",
+    ):
         self.enrichment_queue = enrichment_queue
+        self.min_score = float(min_score)
+        self.min_priority = str(min_priority).strip().upper()
         self.agent = EnrichmentAgent()
         self.file_writer = SwarmFileWriter(output_path or Path("data/swarm_leads.log"))
         # Unsubscribe the agent from raw_post.stored so it doesn't duplicate execution
@@ -412,17 +425,29 @@ class EnrichmentProcessor:
                     self._enrich_executor, self.agent._process_enrichment, post, row_id, eval_dict
                 )
                 
-                # Format complete CRM report and emit to data/swarm_leads.log
+                # Format complete CRM report and emit to data/swarm_leads.log if meeting quality thresholds
                 if lead_obj:
-                    self.processed_count += 1
-                    report_block = format_lead_block(lead_obj, lead_num=self.processed_count)
-                    self.file_writer.write_batch([report_block])
-                    
-                    # Emit lead.saved event for Telegram / CLI consumers
-                    self.agent.event_bus.publish("lead.saved", {
-                        "lead": lead_obj,
-                        "raw_post_id": row_id,
-                    })
+                    readiness = float(getattr(lead_obj, "sales_readiness", getattr(lead_obj, "sales_readiness_score", 0.0)) or 0.0)
+                    priority = str(getattr(lead_obj, "priority", getattr(lead_obj, "priority_tier", "LOW")) or "LOW").upper()
+
+                    min_p_val = PRIORITY_ORDER.get(self.min_priority, 0)
+                    lead_p_val = PRIORITY_ORDER.get(priority, 1)
+
+                    if readiness < self.min_score or lead_p_val < min_p_val:
+                        logger.debug(
+                            "Suppressed lead %s due to quality threshold (Readiness: %.1f < %.1f, Priority: %s < %s)",
+                            row_id, readiness, self.min_score, priority, self.min_priority
+                        )
+                    else:
+                        self.processed_count += 1
+                        report_block = format_lead_block(lead_obj, lead_num=self.processed_count)
+                        self.file_writer.write_batch([report_block])
+                        
+                        # Emit lead.saved event for Telegram / CLI consumers
+                        self.agent.event_bus.publish("lead.saved", {
+                            "lead": lead_obj,
+                            "raw_post_id": row_id,
+                        })
             except Exception as e:
                 logger.error("EnrichmentProcessor failed for lead %s: %s", row_id, e)
             finally:
@@ -447,6 +472,8 @@ class StoragePipeline:
         discovery_queue_size: int = 5000,
         storage_queue_size: int = 2000,
         flush_interval: float = 0.05,
+        min_score: float = 0.0,
+        min_priority: str = "ALL",
     ) -> None:
         self.filter_engine = filter_engine or TokenFreeFilter()
         self.storage = storage or StorageBackend.get_instance()
@@ -477,6 +504,8 @@ class StoragePipeline:
         self.enricher = EnrichmentProcessor(
             enrichment_queue=self.enrichment_queue,
             output_path=self.output_path,
+            min_score=min_score,
+            min_priority=min_priority,
         )
         self._backpressure_warnings = 0
 

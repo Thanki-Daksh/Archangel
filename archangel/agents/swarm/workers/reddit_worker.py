@@ -21,10 +21,18 @@ USER_AGENTS = [
 
 
 class RedditWorker(BasePlatformWorker):
-    """Fetches public JSON feed posts from subreddits asynchronously without authentication."""
+    """Fetches public JSON feed posts from subreddits asynchronously without authentication, with multi-page cursor pagination."""
+
+    def __init__(self, target):
+        super().__init__(target)
+        self.after_cursor = None
 
     async def fetch_posts(self) -> List[RawPost]:
         url = self.target.target_url
+        if self.after_cursor:
+            sep = "&" if "?" in url else "?"
+            url = f"{url}{sep}after={self.after_cursor}"
+
         headers = {
             "User-Agent": random.choice(USER_AGENTS),
             "Accept": "application/json, text/plain, */*",
@@ -36,10 +44,12 @@ class RedditWorker(BasePlatformWorker):
 
         def _fetch():
             try:
-                with urllib.request.urlopen(req, timeout=2.5) as resp:
+                with urllib.request.urlopen(req, timeout=3.5) as resp:
                     if resp.status == 200:
                         data = json.loads(resp.read().decode("utf-8"))
-                        children = data.get("data", {}).get("children", [])
+                        listing_data = data.get("data", {})
+                        self.after_cursor = listing_data.get("after")
+                        children = listing_data.get("children", [])
                         posts = []
                         for c in children:
                             d = c.get("data", {})
@@ -59,6 +69,7 @@ class RedditWorker(BasePlatformWorker):
                         return posts
             except Exception as e:
                 logger.debug("RedditWorker error fetching %s: %s", url, e)
+                self.after_cursor = None
                 return []
             return []
 

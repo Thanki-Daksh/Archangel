@@ -55,6 +55,8 @@ class SwarmManager:
         telegram: bool = False,
         budget: Optional[str] = None,
         comments: Optional[str] = "0-20",
+        min_score: float = 50.0,
+        min_priority: str = "MEDIUM",
     ) -> None:
         self.duration_str = duration
         self.duration_seconds = parse_duration_seconds(duration)
@@ -66,6 +68,8 @@ class SwarmManager:
         self.fresh_str = fresh
         self.budget_str = budget
         self.comments_str = comments
+        self.min_score = min_score
+        self.min_priority = min_priority
         self.write_interval_str = write_interval
         self.flush_interval_seconds = parse_duration_seconds(write_interval) if write_interval else 0.05
         self.telegram_enabled = telegram
@@ -80,6 +84,8 @@ class SwarmManager:
             discovery_queue_size=5000,
             storage_queue_size=2000,
             flush_interval=float(self.flush_interval_seconds) if self.flush_interval_seconds > 0 else 0.05,
+            min_score=self.min_score,
+            min_priority=self.min_priority,
         )
 
         # Pool receives the pipeline — workers never touch storage
@@ -146,8 +152,8 @@ class SwarmManager:
         await self.pipeline.start()
         await self.pool.start(target_objs)
 
-        elapsed = 0
-        poll_tick = 1
+        import time
+        start_mono = time.monotonic()
 
         # Broadcast initial status table to Telegram if reporter active
         if self.telegram_reporter and self.telegram_reporter.enabled:
@@ -186,11 +192,11 @@ class SwarmManager:
                     metrics=self.pipeline.get_metrics(),
                     budget_str=self.budget_str,
                 ),
-                refresh_per_second=2,
+                refresh_per_second=4,
             ) as live:
                 while self.is_running:
-                    await asyncio.sleep(poll_tick)
-                    elapsed += poll_tick
+                    await asyncio.sleep(0.25)
+                    elapsed = int(time.monotonic() - start_mono)
 
                     live.update(
                         render_swarm_dashboard(

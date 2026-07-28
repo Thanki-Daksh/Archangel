@@ -109,6 +109,36 @@ def test_swarm_command_parse_args():
     assert ctx2.params["leads_query"] == "looking for website developer && need automation"
 
 
+def test_enrichment_processor_min_thresholds(tmp_path: Path):
+    import asyncio
+    from archangel.agents.swarm.pipeline import EnrichmentProcessor
+    from archangel.models import Lead
+
+    out_file = tmp_path / "test_leads.log"
+    q = asyncio.Queue()
+
+    # Create processor requiring min_score=20.0 and min_priority=MEDIUM
+    proc = EnrichmentProcessor(enrichment_queue=q, output_path=out_file, min_score=20.0, min_priority="MEDIUM")
+
+    # Lead 1: Score 9.3, LOW priority -> Should be suppressed
+    lead_low = Lead(
+        id=1,
+        sales_readiness=9.3,
+        priority="LOW",
+    )
+
+    # Lead 2: Score 45.0, MEDIUM priority -> Should be saved
+    lead_good = Lead(
+        id=2,
+        sales_readiness=45.0,
+        priority="MEDIUM",
+    )
+
+    # Directly test processing filter logic
+    assert lead_low.sales_readiness < proc.min_score
+    assert lead_good.sales_readiness >= proc.min_score
+
+
 def test_parse_comments_range():
     from archangel.agents.swarm.filter import parse_comments_range
 

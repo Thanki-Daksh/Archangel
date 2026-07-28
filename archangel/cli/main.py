@@ -623,6 +623,8 @@ def swarm_options(f):
     f = click.option("-f", "--fresh", "--f", "fresh", default=None, help="Freshness age filter e.g. '3d', '1-10d', '2w', '1y', '1-10 days'.")(f)
     f = click.option("-b", "--b", "--budget", "budget", default=None, help="Minimum budget threshold e.g. '$1000', '5k', '2500'.")(f)
     f = click.option("-c", "--comments", "--c", "comments", default="0-20", help="Comment count filter e.g. '0-20', '15', 'all' (Default: '0-20').")(f)
+    f = click.option("--min-score", "-sr", "min_score", default=50.0, type=float, help="Minimum Sales Readiness score threshold 0-100 (Default: 50.0).")(f)
+    f = click.option("--min-priority", "-mp", "min_priority", default="MEDIUM", type=click.Choice(["HIGH", "MEDIUM", "LOW", "ALL"], case_sensitive=False), help="Minimum Priority Tier threshold (Default: 'MEDIUM').")(f)
     f = click.option("--beginner", "-bg", "opt_beginner", is_flag=True, default=False, help="Filter for Beginner/Easy leads (No experience requirement listed).")(f)
     f = click.option("--intermediate", "-im", "opt_intermediate", is_flag=True, default=False, help="Filter for Intermediate leads (1-3 yrs experience / MVPs).")(f)
     f = click.option("--pro", "-pr", "opt_pro", is_flag=True, default=False, help="Filter for Pro leads (3-7 yrs experience / Microservices / Senior).")(f)
@@ -643,6 +645,8 @@ def _run_swarm(
     fresh: str | None,
     budget: str | None,
     comments: str = "0-20",
+    min_score: float = 50.0,
+    min_priority: str = "MEDIUM",
     opt_beginner: bool = False,
     opt_intermediate: bool = False,
     opt_pro: bool = False,
@@ -690,6 +694,10 @@ def _run_swarm(
         msg += f" [Minimum Budget: '{budget}']"
     if comments and comments.lower() not in ("all", "off", "none", "any", "unfiltered"):
         msg += f" [Comments Filter: '{comments}']"
+    if min_score > 0:
+        msg += f" [Min Readiness Score: >={min_score:.1f}]"
+    if min_priority and min_priority.upper() != "ALL":
+        msg += f" [Min Priority Tier: >={min_priority.upper()}]"
     msg += f" [Difficulty Tiers: '{', '.join(sorted(allowed_tiers)).upper()}']"
     if write_interval:
         msg += f" [Write Interval: '{write_interval}']"
@@ -710,6 +718,8 @@ def _run_swarm(
         fresh=fresh,
         budget=budget,
         comments=comments,
+        min_score=min_score,
+        min_priority=min_priority,
         write_interval=write_interval,
         telegram=(telegram_mode.lower() == "on"),
     )
@@ -721,23 +731,23 @@ def _run_swarm(
 
 @cli.command("swarm", cls=_SwarmCommand)
 @swarm_options
-def swarm_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
+def swarm_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, min_score: float, min_priority: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
     """Launch 24/7 token-efficient agent swarm."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, min_score, min_priority, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
 
 
 @cli.command("as", cls=_SwarmCommand)
 @swarm_options
-def as_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
+def as_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, min_score: float, min_priority: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
     """Shortcut alias for 'agent swarm'."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, min_score, min_priority, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
 
 
 @cli.command("s", cls=_SwarmCommand)
 @swarm_options
-def s_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
+def s_cmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, min_score: float, min_priority: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
     """Shortcut alias for 'swarm'."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, min_score, min_priority, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
 
 
 @cli.group("agent", invoke_without_command=True)
@@ -750,16 +760,16 @@ def agent_group(ctx: click.Context) -> None:
 
 @agent_group.command("swarm", cls=_SwarmCommand)
 @swarm_options
-def agent_swarm_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
+def agent_swarm_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, min_score: float, min_priority: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
     """Launch 24/7 token-efficient agent swarm."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, min_score, min_priority, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
 
 
 @agent_group.command("s", cls=_SwarmCommand)
 @swarm_options
-def agent_s_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
+def agent_s_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, min_score: float, min_priority: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
     """Shortcut alias for 'agent swarm'."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, min_score, min_priority, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
 
 
 @cli.group("a", invoke_without_command=True)
@@ -772,16 +782,16 @@ def a_group(ctx: click.Context) -> None:
 
 @a_group.command("swarm", cls=_SwarmCommand)
 @swarm_options
-def a_swarm_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
+def a_swarm_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, min_score: float, min_priority: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
     """Shortcut alias for 'agent swarm'."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, min_score, min_priority, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
 
 
 @a_group.command("s", cls=_SwarmCommand)
 @swarm_options
-def a_s_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
+def a_s_subcmd(duration: str, output: str, targets: str, workers: int, leads_query: str | None, fresh: str | None, budget: str | None, comments: str, min_score: float, min_priority: str, opt_beginner: bool, opt_intermediate: bool, opt_pro: bool, opt_master: bool, opt_all: bool, write_interval: str | None, telegram_mode: str, reset_log: bool) -> None:
     """Shortcut alias for 'agent swarm' (aa a s)."""
-    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
+    _run_swarm(duration, output, targets, workers, leads_query, fresh, budget, comments, min_score, min_priority, opt_beginner, opt_intermediate, opt_pro, opt_master, opt_all, write_interval, telegram_mode, reset_log)
 
 
 @cli.command("setup")
