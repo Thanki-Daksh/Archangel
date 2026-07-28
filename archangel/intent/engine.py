@@ -107,12 +107,14 @@ class IntentExpansionEngine:
             logger.debug("Returning cached IntentExpansionResult for '%s'", clean_query)
             return self._cache[clean_query]
 
-        # 1. Try Gemini AI Studio API if API Key is available
-        result = self._expand_via_gemini(leads_query)
+        # 1. Fast zero-latency instant heuristic expansion for 100% reliable zero-delay startup
+        result = self._expand_via_heuristics(leads_query)
 
-        # 2. Fallback to high-yield deterministic heuristics if Gemini is offline
-        if not result:
-            result = self._expand_via_heuristics(leads_query)
+        # 2. Optionally enrich via Gemini AI Studio if API Key is available
+        if self.api_key and not result:
+            ai_res = self._expand_via_gemini(leads_query)
+            if ai_res:
+                result = ai_res
 
         self._cache[clean_query] = result
         logger.info(
@@ -153,12 +155,25 @@ Rules:
 4. Output valid JSON only, no markdown wrappers.
 """
         try:
+            import concurrent.futures
             from google import genai
-            client = genai.Client(api_key=self.api_key)
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-            )
+
+            def _call():
+                client = genai.Client(api_key=self.api_key)
+                return client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                )
+
+            pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            try:
+                future = pool.submit(_call)
+                response = future.result(timeout=2.5)
+                pool.shutdown(wait=False)
+            except Exception as exc:
+                pool.shutdown(wait=False, cancel_futures=True)
+                raise exc
+
             raw_text = response.text or ""
             clean_json = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw_text.strip(), flags=re.MULTILINE)
             data = json.loads(clean_json)
@@ -184,7 +199,7 @@ Rules:
                     confidence=0.95,
                 )
         except Exception as exc:
-            logger.warning("Gemini AI Studio expansion failed: %s. Using heuristic fallback.", exc)
+            logger.debug("Gemini AI Studio expansion timed out or failed: %s. Using instant heuristic fallback.", exc)
 
         return None
 

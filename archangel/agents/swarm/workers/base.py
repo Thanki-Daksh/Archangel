@@ -20,7 +20,7 @@ class BasePlatformWorker(ABC):
     @classmethod
     def get_executor(cls) -> ThreadPoolExecutor:
         if cls._shared_executor is None:
-            cls._shared_executor = ThreadPoolExecutor(max_workers=1000, thread_name_prefix="swarm-net")
+            cls._shared_executor = ThreadPoolExecutor(max_workers=128, thread_name_prefix="swarm-net")
         return cls._shared_executor
 
     def __init__(self, target: SwarmTarget) -> None:

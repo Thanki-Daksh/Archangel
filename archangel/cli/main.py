@@ -707,6 +707,8 @@ def _run_swarm(
         msg += " [Telegram Broadcast: OFF]"
     msg += "[/]"
     _console.print(msg)
+    import sys
+    sys.stdout.flush()
 
     manager = SwarmManager(
         duration=duration,

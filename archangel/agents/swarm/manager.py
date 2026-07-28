@@ -193,7 +193,8 @@ class SwarmManager:
                     metrics=self.pipeline.get_metrics(),
                     budget_str=self.budget_str,
                 ),
-                refresh_per_second=4,
+                auto_refresh=False,
+                refresh_per_second=10,
             ) as live:
                 while self.is_running:
                     await asyncio.sleep(0.25)
@@ -212,6 +213,7 @@ class SwarmManager:
                             budget_str=self.budget_str,
                         )
                     )
+                    live.refresh()
 
                     # Periodically update Telegram live dashboard every 3s (guarded non-blocking task)
                     if self.telegram_reporter and self.telegram_reporter.enabled:
