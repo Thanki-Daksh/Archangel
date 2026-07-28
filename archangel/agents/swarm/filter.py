@@ -1,7 +1,7 @@
 import re
 import time
 import logging
-from typing import Dict, Any, Set, Optional
+from typing import Dict, Any, Set, Optional, List
 from archangel.memory.profile import UserProfileMemory
 
 logger = logging.getLogger(__name__)
@@ -156,31 +156,35 @@ def extract_budget_profile(text: str) -> BudgetProfile:
 
     clean_text = text
 
-    # Currency matchers (symbols & codes)
-    # USD: $, usd, dollar, dollars
-    # INR: ₹, rs, rs., inr, rupee, rupees
-    # EUR: €, eur, euro, euros
-    # GBP: £, gbp, pound, pounds
-    curr_patterns = [
-        ("INR", r"(?:₹|\brs\.?\b|\binr\b|\brupees?\b)", 0.012, "₹"),
-        ("EUR", r"(?:€|\beur\b|\beuros?\b)", 1.08, "€"),
-        ("GBP", r"(?:£|\bgbp\b|\bpounds?\b)", 1.28, "£"),
-        ("USD", r"(?:\$|\busd\b|\bdollars?\b)", 1.0, "$"),
+    curr_definitions = [
+        ("INR", r"(?:₹|\brs\.?\b|\binr\b|\brupees?\b)", 0.012, "₹", True),
+        ("EUR", r"(?:€|\beur\b|\beuros?\b)", 1.08, "€", True),
+        ("GBP", r"(?:£|\bgbp\b|\bpounds?\b)", 1.28, "£", True),
+        ("USD", r"(?:\$|\busd\b|\bdollars?\b)", 1.0, "$", False),
     ]
 
     # Pattern 1: Hourly rates e.g. "$40/hr", "₹500/hr", "500 inr/hr", "€50/hr", "£30/hr"
-    for code, sym_pat, fx, sym in curr_patterns:
-        pat = rf"(?:{sym_pat}\s*)?(\d+(?:\.\d+)?)\s*(?:k|K)?\s*(?:-\s*(?:{sym_pat}\s*)?(\d+(?:\.\d+)?)\s*(?:k|K)?)?\s*(?:{sym_pat})?\s*(?:/|\bper\b|\ban\b)?\s*(?:hr|hour|hourly|h|ph)\b"
+    for code, sym_pat, fx, sym, req_explicit in curr_definitions:
+        if req_explicit:
+            pat = rf"(?:{sym_pat}\s*(\d+(?:\.\d+)?)\s*([kK])?\s*(?:-\s*(?:{sym_pat}\s*)?(\d+(?:\.\d+)?)\s*([kK])?)?|(\d+(?:\.\d+)?)\s*([kK])?\s*(?:-\s*(\d+(?:\.\d+)?)\s*([kK])?)?\s*{sym_pat})\s*(?:/|\bper\b|\ban\b)?\s*(?:hr|hour|hourly|h|ph)\b"
+        else:
+            pat = rf"(?:{sym_pat}\s*)?(\d+(?:\.\d+)?)\s*([kK])?\s*(?:-\s*(?:{sym_pat}\s*)?(\d+(?:\.\d+)?)\s*([kK])?)?\s*(?:{sym_pat})?\s*(?:/|\bper\b|\ban\b)?\s*(?:hr|hour|hourly|h|ph)\b"
+
         for m in re.finditer(pat, clean_text, re.IGNORECASE):
             matched_str = m.group(0).lower()
             if "401" in matched_str and "k" in matched_str:
                 continue
 
-            v1 = float(m.group(1))
+            groups = [g for g in m.groups() if g is not None]
+            nums = [float(g) for g in groups if g.replace(".", "", 1).isdigit()]
+            if not nums:
+                continue
+
+            v1 = nums[0]
             if "k" in matched_str and v1 < 1000:
                 v1 *= 1000.0
-            v2 = float(m.group(2)) if m.group(2) else v1
-            if m.group(2) and "k" in matched_str and v2 < 1000:
+            v2 = nums[1] if len(nums) > 1 else v1
+            if len(nums) > 1 and "k" in matched_str and v2 < 1000:
                 v2 *= 1000.0
 
             avg_hourly = (v1 + v2) / 2.0
@@ -199,13 +203,21 @@ def extract_budget_profile(text: str) -> BudgetProfile:
             )
 
     # Pattern 2: Monthly rates e.g. "$5,000/mo", "₹100,000/mo", "100k inr/mo", "€4,000/mo", "£3,000/mo"
-    for code, sym_pat, fx, sym in curr_patterns:
-        pat = rf"(?:{sym_pat}\s*)?(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?\s*(?:-\s*(?:{sym_pat}\s*)?(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?)?\s*(?:{sym_pat})?\s*(?:/|\bper\b|\ba\b)?\s*(?:m|mo|month|monthly)\b"
+    for code, sym_pat, fx, sym, req_explicit in curr_definitions:
+        if req_explicit:
+            pat = rf"(?:{sym_pat}\s*(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?\s*(?:-\s*(?:{sym_pat}\s*)?(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?)?|(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?\s*(?:-\s*(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?)?\s*{sym_pat})\s*(?:/|\bper\b|\ba\b)?\s*(?:m|mo|month|monthly)\b"
+        else:
+            pat = rf"(?:{sym_pat}\s*)?(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?\s*(?:-\s*(?:{sym_pat}\s*)?(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?)?\s*(?:{sym_pat})?\s*(?:/|\bper\b|\ba\b)?\s*(?:m|mo|month|monthly)\b"
+
         m = re.search(pat, clean_text, re.IGNORECASE)
         if m:
-            v1_raw = m.group(1).replace(",", "")
-            v1 = float(v1_raw)
-            if (len(m.groups()) >= 2 and m.group(2) and m.group(2).lower() == "k") or (v1 < 1000 and "k" in m.group(0).lower()):
+            groups = [g for g in m.groups() if g is not None]
+            num_strs = [g.replace(",", "") for g in groups if g.replace(",", "").isdigit()]
+            if not num_strs:
+                continue
+
+            v1 = float(num_strs[0])
+            if ("k" in m.group(0).lower() or any(g.lower() == "k" for g in groups)) and v1 < 1000:
                 v1 *= 1000.0
 
             normalized_usd = v1 * fx
@@ -222,24 +234,31 @@ def extract_budget_profile(text: str) -> BudgetProfile:
             )
 
     # Pattern 3: Salary e.g. "$120k/yr", "12 lakh inr", "150000 eur", "£60,000/yr"
-    for code, sym_pat, fx, sym in curr_patterns:
-        pat = rf"(?:{sym_pat}\s*)?(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?\s*(?:-\s*(?:{sym_pat}\s*)?(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?)?\s*(?:{sym_pat})?\s*(?:/|\bper\b|\ba\b)?\s*(?:y|yr|year|annual|annually|salary)\b"
+    for code, sym_pat, fx, sym, req_explicit in curr_definitions:
+        if req_explicit:
+            pat = rf"(?:{sym_pat}\s*(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?\s*(?:-\s*(?:{sym_pat}\s*)?(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?)?|(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?\s*(?:-\s*(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?)?\s*{sym_pat})\s*(?:/|\bper\b|\ba\b)?\s*(?:y|yr|year|annual|annually|salary)\b"
+        else:
+            pat = rf"(?:{sym_pat}\s*)?(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?\s*(?:-\s*(?:{sym_pat}\s*)?(\d{{1,3}}(?:,\d{{3}})+|\d+)\s*([kK])?)?\s*(?:{sym_pat})?\s*(?:/|\bper\b|\ba\b)?\s*(?:y|yr|year|annual|annually|salary)\b"
+
         m = re.search(pat, clean_text, re.IGNORECASE)
         if m:
             matched_str = m.group(0).lower()
             if "401" in matched_str and "k" in matched_str:
                 continue
 
-            v1_raw = m.group(1).replace(",", "")
-            v1 = float(v1_raw)
-            if (m.group(2) and m.group(2).lower() == "k") or (v1 < 1000 and "k" in matched_str):
+            groups = [g for g in m.groups() if g is not None]
+            num_strs = [g.replace(",", "") for g in groups if g.replace(",", "").isdigit()]
+            if not num_strs:
+                continue
+
+            v1 = float(num_strs[0])
+            if ("k" in matched_str or any(g.lower() == "k" for g in groups)) and v1 < 1000:
                 v1 *= 1000.0
 
             v2 = v1
-            if m.group(3):
-                v2_raw = m.group(3).replace(",", "")
-                v2 = float(v2_raw)
-                if (m.group(4) and m.group(4).lower() == "k") or (v2 < 1000 and "k" in matched_str):
+            if len(num_strs) > 1:
+                v2 = float(num_strs[1])
+                if ("k" in matched_str or any(g.lower() == "k" for g in groups)) and v2 < 1000:
                     v2 *= 1000.0
 
             low_val = min(v1, v2)
@@ -362,6 +381,55 @@ QUERY_STOP_WORDS = {
 }
 
 
+def parse_multi_leads_queries(query_str: Optional[str]) -> List[str]:
+    """Parses single or multi-topic lead queries separated by &&, &, AND, or commas.
+    
+    Examples:
+        - 'website development' -> ['website development']
+        - '"website development" && "custom bot"' -> ['website development', 'custom bot']
+        - '"website development" & "custom bot"' -> ['website development', 'custom bot']
+        - 'website development AND custom bot' -> ['website development', 'custom bot']
+        - 'website development, custom bot' -> ['website development', 'custom bot']
+    """
+    if not query_str or not query_str.strip():
+        return []
+
+    raw_parts = re.split(r"\s*(?:&&|&|\bAND\b|,)\s*", query_str.strip(), flags=re.IGNORECASE)
+    cleaned: List[str] = []
+    for p in raw_parts:
+        item = p.strip().strip('"\'').strip()
+        if item and item not in cleaned:
+            cleaned.append(item)
+    return cleaned
+
+
+def parse_comments_range(comments_str: Optional[str]) -> Optional[tuple[int, int]]:
+    """Parses comments filter string e.g. '0-20', '20', '<=15', '5-50', 'all'.
+    
+    Default is (0, 20) if unspecified. Returns None if disabled ('all' / 'off' / 'none').
+    """
+    if comments_str is None:
+        return (0, 20)  # Default: 0 to 20 comments
+
+    clean = comments_str.strip().lower()
+    if not clean or clean in ("all", "off", "none", "any", "unfiltered"):
+        return None
+
+    # Check range e.g. "0-20" or "5-30"
+    m_range = re.match(r"^(\d+)\s*-\s*(\d+)$", clean)
+    if m_range:
+        c1, c2 = int(m_range.group(1)), int(m_range.group(2))
+        return (min(c1, c2), max(c1, c2))
+
+    # Check single number or <=N e.g. "20", "<=20", "<20"
+    m_single = re.search(r"(\d+)", clean)
+    if m_single:
+        val = int(m_single.group(1))
+        return (0, val)
+
+    return (0, 20)
+
+
 class TokenFreeFilter:
     """Evaluates raw posts locally using regex matching and rules from root you.txt."""
 
@@ -371,21 +439,25 @@ class TokenFreeFilter:
         leads_query: Optional[str] = None,
         fresh: Optional[str] = None,
         budget: Optional[str] = None,
+        comments: Optional[str] = "0-20",
     ) -> None:
         self.profile_memory = profile_memory or UserProfileMemory()
         self.leads_query = leads_query.strip() if leads_query else None
-        self.query_keywords = [
-            k.lower() for k in re.split(r"\W+", self.leads_query)
-            if len(k) > 1 and k.lower() not in QUERY_STOP_WORDS
-        ] if self.leads_query else []
+        self.sub_queries = parse_multi_leads_queries(self.leads_query)
+        self.query_keywords_map = {
+            sq: [k.lower() for k in re.split(r"\W+", sq) if len(k) > 1 and k.lower() not in QUERY_STOP_WORDS]
+            for sq in self.sub_queries
+        }
 
-        self.intent_expansion = None
-        self.excluded_terms = []
-        if self.leads_query:
+        self.intent_expansions = []
+        self.excluded_terms: List[str] = []
+        if self.sub_queries:
             from archangel.intent import IntentExpansionEngine
             engine = IntentExpansionEngine()
-            self.intent_expansion = engine.expand_intent(self.leads_query)
-            self.excluded_terms = self.intent_expansion.excluded_terms
+            for sq in self.sub_queries:
+                exp = engine.expand_intent(sq)
+                self.intent_expansions.append(exp)
+                self.excluded_terms.extend(exp.excluded_terms)
 
         self.fresh_str = fresh.strip() if fresh else None
         self.fresh_range = parse_fresh_range(self.fresh_str)
@@ -393,18 +465,35 @@ class TokenFreeFilter:
         self.budget_str = str(budget).strip() if budget else None
         self.min_budget = parse_budget_amount(self.budget_str)
 
+        self.comments_str = str(comments).strip() if comments is not None else "0-20"
+        self.comments_range = parse_comments_range(self.comments_str)
+
     def evaluate(
         self,
         content: str,
         title: str = "",
         source: str = "",
         timestamp: float = 0.0,
+        num_comments: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Evaluates content using 0 LLM tokens.
         
         Returns:
             dict with 'is_lead' (bool), 'confidence' (float), 'matched_keywords' (list), and 'is_excluded' (bool).
         """
+        # Comments range filter evaluation
+        if self.comments_range is not None:
+            comm_count = num_comments if num_comments is not None else 0
+            min_c, max_c = self.comments_range
+            if comm_count < min_c or comm_count > max_c:
+                return {
+                    "is_lead": False,
+                    "confidence": 0.0,
+                    "reason": f"Post comment count ({comm_count}) outside --comments range '{self.comments_str}' ({min_c}-{max_c})",
+                    "matched_keywords": [],
+                    "is_excluded": True,
+                }
+
         # Freshness filter evaluation if post has a timestamp
         if self.fresh_range and timestamp > 0:
             min_age, max_age = self.fresh_range
@@ -438,7 +527,7 @@ class TokenFreeFilter:
         text_lower = full_text.lower()
         if self.excluded_terms:
             for excl in self.excluded_terms:
-                if excl in text_lower:
+                if re.search(rf"\b{re.escape(excl.lower())}\b", text_lower):
                     return {
                         "is_lead": False,
                         "confidence": 0.0,
@@ -449,7 +538,7 @@ class TokenFreeFilter:
 
         if self.profile_memory.negative_keywords:
             for neg in self.profile_memory.negative_keywords:
-                if neg in text_lower:
+                if re.search(rf"\b{re.escape(neg.lower())}\b", text_lower):
                     return {
                         "is_lead": False,
                         "confidence": 0.0,
@@ -458,22 +547,28 @@ class TokenFreeFilter:
                         "is_excluded": True,
                     }
 
-        # 3. Match Lead Intent Signatures
+        # 3. Match Lead Intent Signatures & Multi-query Topic Enforcement
         text_lower = full_text.lower()
 
-        # If specific leads_query provided, enforce strict query match
-        if self.leads_query:
-            exact_match = self.leads_query.lower() in text_lower
-            if self.query_keywords:
-                kw_match = all(kw in text_lower for kw in self.query_keywords)
-            else:
-                kw_match = exact_match
+        # If specific leads_query topic(s) provided, enforce query match
+        if self.sub_queries:
+            matched_sub_query = None
+            for sq in self.sub_queries:
+                sq_lower = sq.lower()
+                exact_match = sq_lower in text_lower
+                keywords = self.query_keywords_map.get(sq, [])
+                kw_match = all(kw in text_lower for kw in keywords) if keywords else exact_match
 
-            if not (exact_match or kw_match):
+                if exact_match or kw_match:
+                    matched_sub_query = sq
+                    break
+
+            if not matched_sub_query:
+                q_display = " | ".join(self.sub_queries)
                 return {
                     "is_lead": False,
                     "confidence": 0.0,
-                    "reason": f"Post does not match requested leads topic: '{self.leads_query}'",
+                    "reason": f"Post does not match requested leads topic(s): '{q_display}'",
                     "matched_keywords": [],
                     "is_excluded": True,
                 }
@@ -485,8 +580,14 @@ class TokenFreeFilter:
         # 4. Match Positive Skills (from you.txt and default dictionary)
         matched_keywords: Set[str] = set()
 
-        if self.leads_query:
-            matched_keywords.add(self.leads_query)
+        if self.sub_queries:
+            for sq in self.sub_queries:
+                sq_lower = sq.lower()
+                exact_match = sq_lower in text_lower
+                keywords = self.query_keywords_map.get(sq, [])
+                kw_match = all(kw in text_lower for kw in keywords) if keywords else exact_match
+                if exact_match or kw_match:
+                    matched_keywords.add(sq)
 
         if self.profile_memory.positive_keywords:
             for pos in self.profile_memory.positive_keywords:
