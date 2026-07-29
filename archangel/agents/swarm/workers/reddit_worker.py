@@ -59,6 +59,8 @@ class RedditWorker(BasePlatformWorker):
 
     async def fetch_posts(self) -> List[RawPost]:
         url = self.target.target_url
+        from archangel.agents.swarm.logger import SwarmTelemetryLogger
+        SwarmTelemetryLogger.get_instance().log_event("FETCH", f"GET {url}")
 
         # Check if targeting RSS feed
         is_rss = ".rss" in url or "/feed" in url

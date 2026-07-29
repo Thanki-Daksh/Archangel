@@ -273,3 +273,32 @@ class SwarmFileWriter:
         """Close the file stream gracefully."""
         if self._file_handle and not self._file_handle.closed:
             self._file_handle.close()
+
+
+class SwarmTelemetryLogger:
+    """Real-time live activity logger — records worker HTTP fetches, search requests, pre-filter matches, and disk writes."""
+
+    _instance: Optional["SwarmTelemetryLogger"] = None
+
+    def __init__(self, log_path: Optional[Path] = None) -> None:
+        self.log_path = log_path or Path("data/swarm_activity.log")
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.log_path.exists():
+            self.log_path.touch()
+
+    @classmethod
+    def get_instance(cls) -> "SwarmTelemetryLogger":
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def log_event(self, category: str, message: str, worker_id: str = "") -> None:
+        """Logs a live worker event line with timestamp, category tag, and message."""
+        now_time = datetime.datetime.now().strftime("%H:%M:%S")
+        w_tag = f"[{worker_id}] " if worker_id else ""
+        line = f"[{now_time}] [{category.upper()}] {w_tag}{message}\n"
+        try:
+            with self.log_path.open("a", encoding="utf-8") as f:
+                f.write(line)
+        except Exception:
+            pass

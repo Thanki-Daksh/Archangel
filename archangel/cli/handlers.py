@@ -654,23 +654,25 @@ def cmd_lead_logs(console: Console, path: str = "data/swarm_leads.log", tail: in
     if wipe or db:
         return cmd_wipe_lead_logs(console, path=path, db=db)
 
-    lead_file = Path(path)
+    target_path = "data/swarm_activity.log" if verbose else path
+    lead_file = Path(target_path)
 
     try:
         if lead_file.exists() and lead_file.stat().st_size > 0:
             lines = lead_file.read_text(encoding="utf-8", errors="ignore").splitlines()
             display_lines = lines[-tail:] if tail and len(lines) > tail else lines
-            mode_str = " (Verbose Mode)" if verbose else ""
-            console.print(f"[bold cyan]📋 Swarm Lead Logs ({lead_file}){mode_str} - Last {len(display_lines)} lines:[/bold cyan]\n")
+            mode_str = " [LIVE TELEMETRY WORKER ACTIVITY]" if verbose else ""
+            console.print(f"[bold cyan]📋 Swarm Activity Stream ({lead_file}){mode_str} - Last {len(display_lines)} lines:[/bold cyan]\n")
             for line in display_lines:
                 console.print(line)
         else:
-            console.print(f"[bold cyan]📋 Tailing Swarm Lead Logs ({lead_file}) live...[/bold cyan]\n")
+            mode_str = " [LIVE TELEMETRY WORKER ACTIVITY]" if verbose else ""
+            console.print(f"[bold cyan]📋 Tailing Swarm Activity Stream ({lead_file}){mode_str} live...[/bold cyan]\n")
 
         if not follow:
             return True
 
-        console.print("\n[dim italic]👀 Watching live lead log stream in real-time... (Press Ctrl+C to exit)[/dim italic]\n")
+        console.print("\n[dim italic]👀 Watching live worker requests, fetches, and keyword checks in real-time... (Press Ctrl+C to exit)[/dim italic]\n")
         
         # Ensure file exists before opening for tail
         lead_file.parent.mkdir(parents=True, exist_ok=True)
