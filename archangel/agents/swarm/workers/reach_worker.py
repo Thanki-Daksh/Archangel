@@ -16,7 +16,7 @@ _REACH_SEMAPHORE: asyncio.Semaphore | None = None
 def _get_reach_semaphore() -> asyncio.Semaphore:
     global _REACH_SEMAPHORE
     if _REACH_SEMAPHORE is None:
-        _REACH_SEMAPHORE = asyncio.Semaphore(2)
+        _REACH_SEMAPHORE = asyncio.Semaphore(50)
     return _REACH_SEMAPHORE
 
 
@@ -26,6 +26,8 @@ class AgentReachWorker(BasePlatformWorker):
     async def fetch_posts(self) -> List[RawPost]:
         target = self.target.target_url
         platform = self.target.platform.lower()
+        from archangel.agents.swarm.logger import SwarmTelemetryLogger
+        SwarmTelemetryLogger.get_instance().log_event("SEARCH", f"Searching {platform.upper()}: {target}", platform)
         logger.debug("AgentReachWorker executing search for platform %s with target %s", platform, target)
 
         loop = asyncio.get_event_loop()

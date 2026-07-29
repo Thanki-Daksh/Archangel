@@ -19,6 +19,9 @@ class RSSStreamWorker(BasePlatformWorker):
         if not url.startswith("http"):
             return []
 
+        from archangel.agents.swarm.logger import SwarmTelemetryLogger
+        SwarmTelemetryLogger.get_instance().log_event("FETCH", f"GET RSS {url}")
+
         from archangel.agents.swarm.workers.base import get_shared_client
 
         try:

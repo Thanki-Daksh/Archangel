@@ -79,6 +79,9 @@ class BasePlatformWorker(ABC):
             try:
                 posts = await self.fetch_posts()
                 self.scanned_count += len(posts)
+                if posts:
+                    from archangel.agents.swarm.logger import SwarmTelemetryLogger
+                    SwarmTelemetryLogger.get_instance().log_event("FETCHED", f"{len(posts)} posts from {self.target.target_url}", self.target.platform)
                 for p in posts:
                     if not self.is_running:
                         break

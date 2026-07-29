@@ -16,7 +16,7 @@ _WEB_SEMAPHORE: asyncio.Semaphore | None = None
 def _get_web_semaphore() -> asyncio.Semaphore:
     global _WEB_SEMAPHORE
     if _WEB_SEMAPHORE is None:
-        _WEB_SEMAPHORE = asyncio.Semaphore(2)
+        _WEB_SEMAPHORE = asyncio.Semaphore(50)
     return _WEB_SEMAPHORE
 
 
@@ -28,6 +28,9 @@ class WebSearchWorker(BasePlatformWorker):
         query = target.replace("web-search:", "").replace("web:", "").strip()
         if not query:
             return []
+
+        from archangel.agents.swarm.logger import SwarmTelemetryLogger
+        SwarmTelemetryLogger.get_instance().log_event("WEB_SEARCH", f"Querying engine: '{query}'", "web")
 
         loop = asyncio.get_event_loop()
 

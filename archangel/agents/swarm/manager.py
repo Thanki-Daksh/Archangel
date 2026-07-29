@@ -144,71 +144,44 @@ class SwarmManager:
         if self.reset_log and self.output_path.exists():
             self.output_path.unlink()
 
-        targets = self.registry.resolve_targets(self.targets_input, leads_query=self.leads_query)
-        if not targets:
-            logger.error("No valid targets resolved for input: %s", self.targets_input)
-            self.is_running = False
-            return
+        from rich.live import Live
+        from archangel.agents.swarm.dashboard import render_swarm_dashboard, format_seconds
 
-        target_objs = targets[:self.max_workers]
-        logger.info(
-            "SwarmManager starting pipeline & worker pool (%d active workers, duration: %s)",
-            len(target_objs), self.duration_str
-        )
-
-        self.is_running = True
-
-        # Start pipeline consumers BEFORE workers begin producing
-        await self.pipeline.start()
-        await self.pool.start(target_objs)
-
-        import time
-        start_mono = time.monotonic()
-
-        # Broadcast initial status table to Telegram if reporter active
-        if self.telegram_reporter and self.telegram_reporter.enabled:
-            from archangel.agents.swarm.reporter import build_swarm_monitor_ascii_table
-            hdr = f"⚔️ *Summoning 24/7 Agent Swarm (Workers: {len(self.pool.workers)})*"
-            if self.leads_query:
-                hdr += f"\n🎯 *Target Leads:* `{self.leads_query}`"
-            if self.fresh_str:
-                hdr += f"\n⏱ *Freshness:* `{self.fresh_str}`"
-
-            init_ascii = build_swarm_monitor_ascii_table(
-                active_workers=len(self.pool.workers),
+        with Live(
+            render_swarm_dashboard(
+                duration_seconds=self.duration_seconds,
+                elapsed_seconds=0,
+                scanned_count=0,
+                qualified_count=0,
+                active_workers=0,
                 max_workers=max(1000, self.max_workers),
-                elapsed_str="00h 00m 00s",
-                target_str=self.duration_str,
                 output_path=str(self.output_path),
-                scanned_count=self.pool.scanned_count,
-                qualified_count=self.pool.qualified_leads_count,
-            )
-            await self.telegram_reporter.send_initial_status(hdr, init_ascii)
+                metrics=None,
+                budget_str=self.budget_str,
+            ),
+            auto_refresh=True,
+            refresh_per_second=4,
+            redirect_stdout=True,
+            redirect_stderr=True,
+        ) as live:
+            targets = self.registry.resolve_targets(self.targets_input, leads_query=self.leads_query)
+            if not targets:
+                logger.error("No valid targets resolved for input: %s", self.targets_input)
+                self.is_running = False
+                return
 
-        try:
-            from rich.live import Live
-            from archangel.agents.swarm.dashboard import render_swarm_dashboard, format_seconds
-            from archangel.agents.swarm.reporter import build_swarm_monitor_ascii_table
+            self.is_running = True
 
-            with Live(
-                render_swarm_dashboard(
-                    duration_seconds=self.duration_seconds,
-                    elapsed_seconds=0,
-                    scanned_count=self.pool.scanned_count,
-                    qualified_count=self.pool.qualified_leads_count,
-                    active_workers=len(self.pool.workers),
-                    max_workers=max(1000, self.max_workers),
-                    output_path=str(self.output_path),
-                    metrics=self.pipeline.get_metrics(),
-                    budget_str=self.budget_str,
-                ),
-                auto_refresh=False,
-                refresh_per_second=1,
-                redirect_stdout=True,
-                redirect_stderr=True,
-            ) as live:
+            # Start pipeline consumers BEFORE workers begin producing
+            await self.pipeline.start()
+            await self.pool.start(targets)
+
+            import time
+            start_mono = time.monotonic()
+
+            try:
                 while self.is_running:
-                    await asyncio.sleep(1.0)
+                    await asyncio.sleep(0.25)
                     elapsed = int(time.monotonic() - start_mono)
 
                     live.update(
@@ -262,15 +235,15 @@ class SwarmManager:
                     if self.duration_seconds > 0 and elapsed >= self.duration_seconds:
                         logger.info("Swarm reached target duration (%s). Initiating shutdown.", self.duration_str)
                         break
-        except asyncio.CancelledError:
-            logger.info("Swarm received cancellation signal.")
-        finally:
-            # Restore logger levels upon shutdown
-            logging.disable(logging.NOTSET)
-            root_logger.setLevel(old_root_level)
-            arch_logger.setLevel(old_arch_level)
-            # pool.stop() internally calls pipeline.stop() for graceful drain
-            await self.pool.stop()
-            self.is_running = False
-            logger.info("Swarm run finished. Scanned: %d | Qualified Leads: %d | Output: %s",
-                        self.pool.scanned_count, self.pool.qualified_leads_count, self.output_path)
+            except asyncio.CancelledError:
+                logger.info("Swarm received cancellation signal.")
+            finally:
+                # Restore logger levels upon shutdown
+                logging.disable(logging.NOTSET)
+                root_logger.setLevel(old_root_level)
+                arch_logger.setLevel(old_arch_level)
+                # pool.stop() internally calls pipeline.stop() for graceful drain
+                await self.pool.stop()
+                self.is_running = False
+                logger.info("Swarm run finished. Scanned: %d | Qualified Leads: %d | Output: %s",
+                            self.pool.scanned_count, self.pool.qualified_leads_count, self.output_path)

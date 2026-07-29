@@ -658,26 +658,35 @@ def cmd_lead_logs(console: Console, path: str = "data/swarm_leads.log", tail: in
     lead_file = Path(target_path)
 
     try:
+        lead_file.parent.mkdir(parents=True, exist_ok=True)
+        if not lead_file.exists():
+            lead_file.touch()
+
+        if verbose:
+            console.print(f"[dim]info : Tailing Archangel Swarm Telemetry Stream ({lead_file})...[/dim]\n")
+            with lead_file.open("r", encoding="utf-8", errors="ignore") as f:
+                # Read all existing lines first, then tail indefinitely
+                while True:
+                    line = f.readline()
+                    if line:
+                        console.print(line.rstrip())
+                    else:
+                        time.sleep(0.01)
+            return True
+
         if lead_file.exists() and lead_file.stat().st_size > 0:
             lines = lead_file.read_text(encoding="utf-8", errors="ignore").splitlines()
             display_lines = lines[-tail:] if tail and len(lines) > tail else lines
-            mode_str = " [LIVE TELEMETRY WORKER ACTIVITY]" if verbose else ""
-            console.print(f"[bold cyan]📋 Swarm Activity Stream ({lead_file}){mode_str} - Last {len(display_lines)} lines:[/bold cyan]\n")
+            console.print(f"[bold cyan]📋 Swarm Lead Logs ({lead_file}) - Last {len(display_lines)} lines:[/bold cyan]\n")
             for line in display_lines:
                 console.print(line)
         else:
-            mode_str = " [LIVE TELEMETRY WORKER ACTIVITY]" if verbose else ""
-            console.print(f"[bold cyan]📋 Tailing Swarm Activity Stream ({lead_file}){mode_str} live...[/bold cyan]\n")
+            console.print(f"[bold cyan]📋 Tailing Swarm Lead Logs ({lead_file}) live...[/bold cyan]\n")
 
         if not follow:
             return True
 
-        console.print("\n[dim italic]👀 Watching live worker requests, fetches, and keyword checks in real-time... (Press Ctrl+C to exit)[/dim italic]\n")
-        
-        # Ensure file exists before opening for tail
-        lead_file.parent.mkdir(parents=True, exist_ok=True)
-        if not lead_file.exists():
-            lead_file.touch()
+        console.print("\n[dim italic]👀 Watching live lead log stream in real-time... (Press Ctrl+C to exit)[/dim italic]\n")
 
         with lead_file.open("r", encoding="utf-8", errors="ignore") as f:
             f.seek(0, 2)  # Seek to end of existing file
@@ -686,7 +695,7 @@ def cmd_lead_logs(console: Console, path: str = "data/swarm_leads.log", tail: in
                 if line:
                     console.print(line.rstrip())
                 else:
-                    time.sleep(0.1)
+                    time.sleep(0.05)
     except KeyboardInterrupt:
         console.print("\n[yellow]Stopped live lead stream monitoring.[/yellow]")
         return True

@@ -554,8 +554,13 @@ class TokenFreeFilter:
 
         # Idea #7: Fast 5-Microsecond C-String Pre-Filter
         FAST_PREFILTER_KEYWORDS = ("hiring", "looking for", "need", "want", "seeking", "developer", "freelance", "job", "gig", "contract", "saas", "automation", "python", "react", "fullstack", "$", "₹", "inr")
-        if not any(k in text_lower for k in FAST_PREFILTER_KEYWORDS):
+        matched_fast_kw = next((k for k in FAST_PREFILTER_KEYWORDS if k in text_lower), None)
+        if not matched_fast_kw:
             return {"is_lead": False, "confidence": 0.0, "matched_keywords": [], "is_excluded": False}
+
+        from archangel.agents.swarm.logger import SwarmTelemetryLogger
+        title_snippet = title[:40] if title else full_text[:40]
+        SwarmTelemetryLogger.get_instance().log_event("MATCH", f"Matched '{matched_fast_kw}' in: '{title_snippet}...'", source)
 
         # 1. Check generic job seeker exclusions (e.g. "For Hire / Hire Me" posts)
         for excl_pattern in GENERIC_EXCLUSION_PATTERNS:

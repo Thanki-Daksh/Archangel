@@ -70,8 +70,11 @@ class SwarmPool:
             logger.warning("SwarmPool received empty targets list.")
             return
 
-        # Select unique targets up to max_workers capacity (preventing duplicate URL workers)
-        selected_targets = targets[:self.max_workers]
+        # Expand targets up to max_workers capacity (instantiating rotated workers up to max_workers)
+        selected_targets: List[SwarmTarget] = []
+        if targets:
+            for i in range(self.max_workers):
+                selected_targets.append(targets[i % len(targets)])
 
         logger.info("Starting SwarmPool with %d active workers (max cap: %d)",
                     len(selected_targets), self.max_workers)
