@@ -187,6 +187,25 @@ class WebSearch:
         except Exception as exc:
             return f"Search failed: {exc}"
 
+    @staticmethod
+    async def asearch(query: str, max_results: int = 3) -> str:
+        """Return top search results asynchronously without blocking thread pool loops."""
+        try:
+            from ddgs import AsyncDDGS
+            async with AsyncDDGS() as ddgs:
+                results = await ddgs.text(query, max_results=max_results)
+            if not results:
+                return "No results found."
+            lines = []
+            for i, r in enumerate(results, 1):
+                title = r.get("title", "No title")
+                url = r.get("href", "No URL")
+                body = r.get("body", "No description")
+                lines.append(f"{i}. {title}\n   URL: {url}\n   {body}")
+            return "\n\n".join(lines)
+        except Exception as exc:
+            return f"Search failed: {exc}"
+
 
 # ---------------------------------------------------------------------------
 # LLMClient

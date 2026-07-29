@@ -30,5 +30,7 @@
 - **Subreddit Auto-Discovery Engine (Idea #3)**: Implemented `SubredditDiscoveryEngine` ([subreddit_discovery.py](file:///d:/Daksh/Business/Archangel/archangel/agents/swarm/subreddit_discovery.py)) to dynamically search and discover 500+ active hiring subreddits on the fly.
 - **Fast 5-Microsecond Pre-Filter (Idea #7)**: Added C-string fast path check in `TokenFreeFilter.evaluate()` ([filter.py](file:///d:/Daksh/Business/Archangel/archangel/agents/swarm/filter.py#L554)) to instantly drop non-lead posts before regex parsing.
 - **Rotating Micro-Log Part Files (Idea #8)**: Upgraded `SwarmFileWriter` ([logger.py](file:///d:/Daksh/Business/Archangel/archangel/agents/swarm/logger.py#L230)) to split lead streams into rotating 100-lead part files (`data/leads_parts/swarm_leads_part_001.log`, `002.log`) alongside the main continuous stream.
+- **Native Async WebSearch (Idea #9)**: Added `WebSearch.asearch()` ([chat.py](file:///d:/Daksh/Business/Archangel/archangel/agents/chat.py#L190)) using `AsyncDDGS` for non-blocking asynchronous web and DuckDuckGo search queries.
+- **Verbose Live Log Monitoring (`aa logs -v`)**: Added `-v` / `--verbose` option to `log` and `logs` CLI commands ([main.py](file:///d:/Daksh/Business/Archangel/archangel/cli/main.py#L766)) and `cmd_lead_logs` ([handlers.py](file:///d:/Daksh/Business/Archangel/archangel/cli/handlers.py#L652)).
 - **Verification**: **Full test suite passing (20/20 storage & swarm tests, 98/98 full suite)**.
 

@@ -763,9 +763,10 @@ def s_cmd(action: str | None, duration: str, output: str, targets: str, workers:
 @click.option("--db", "-d", is_flag=True, help="Purge all lead entries from SQLite database as well.")
 @click.option("--tail", "-t", default=50, help="Show last N lines of lead logs.")
 @click.option("--follow/--no-follow", "-f", default=True, help="Follow live log output.")
-def log_top_cmd(wipe: bool, db: bool, tail: int, follow: bool) -> None:
+@click.option("--verbose", "-v", is_flag=True, help="Show verbose internal worker activity.")
+def log_top_cmd(wipe: bool, db: bool, tail: int, follow: bool, verbose: bool) -> None:
     """View or live tail swarm lead logs (data/swarm_leads.log)."""
-    cmd_lead_logs(_console, tail=tail, wipe=wipe, db=db, follow=follow)
+    cmd_lead_logs(_console, tail=tail, wipe=wipe, db=db, follow=follow, verbose=verbose)
 
 
 @cli.command("logs")
@@ -773,9 +774,10 @@ def log_top_cmd(wipe: bool, db: bool, tail: int, follow: bool) -> None:
 @click.option("--db", "-d", is_flag=True, help="Purge all lead entries from SQLite database as well.")
 @click.option("--tail", "-t", default=50, help="Show last N lines of lead logs.")
 @click.option("--follow/--no-follow", "-f", default=True, help="Follow live log output.")
-def logs_top_cmd(wipe: bool, db: bool, tail: int, follow: bool) -> None:
+@click.option("--verbose", "-v", is_flag=True, help="Show verbose internal worker activity.")
+def logs_top_cmd(wipe: bool, db: bool, tail: int, follow: bool, verbose: bool) -> None:
     """View or live tail swarm lead logs (data/swarm_leads.log)."""
-    cmd_lead_logs(_console, tail=tail, wipe=wipe, db=db, follow=follow)
+    cmd_lead_logs(_console, tail=tail, wipe=wipe, db=db, follow=follow, verbose=verbose)
 
 
 @cli.group("agent", invoke_without_command=True)

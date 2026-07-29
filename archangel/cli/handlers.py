@@ -649,7 +649,7 @@ def cmd_wipe_lead_logs(console: Console, path: str = "data/swarm_leads.log", db:
         return False
 
 
-def cmd_lead_logs(console: Console, path: str = "data/swarm_leads.log", tail: int = 50, wipe: bool = False, db: bool = False, follow: bool = True) -> bool:
+def cmd_lead_logs(console: Console, path: str = "data/swarm_leads.log", tail: int = 50, wipe: bool = False, db: bool = False, follow: bool = True, verbose: bool = False) -> bool:
     """View or wipe the swarm lead log stream file (and optionally watch live stream)."""
     if wipe or db:
         return cmd_wipe_lead_logs(console, path=path, db=db)
@@ -660,7 +660,8 @@ def cmd_lead_logs(console: Console, path: str = "data/swarm_leads.log", tail: in
         if lead_file.exists() and lead_file.stat().st_size > 0:
             lines = lead_file.read_text(encoding="utf-8", errors="ignore").splitlines()
             display_lines = lines[-tail:] if tail and len(lines) > tail else lines
-            console.print(f"[bold cyan]📋 Swarm Lead Logs ({lead_file}) - Last {len(display_lines)} lines:[/bold cyan]\n")
+            mode_str = " (Verbose Mode)" if verbose else ""
+            console.print(f"[bold cyan]📋 Swarm Lead Logs ({lead_file}){mode_str} - Last {len(display_lines)} lines:[/bold cyan]\n")
             for line in display_lines:
                 console.print(line)
         else:
