@@ -550,6 +550,13 @@ class TokenFreeFilter:
         if not full_text:
             return {"is_lead": False, "confidence": 0.0, "matched_keywords": [], "is_excluded": False}
 
+        text_lower = full_text.lower()
+
+        # Idea #7: Fast 5-Microsecond C-String Pre-Filter
+        FAST_PREFILTER_KEYWORDS = ("hiring", "looking for", "need", "want", "seeking", "developer", "freelance", "job", "gig", "contract", "saas", "automation", "python", "react", "fullstack", "$", "₹", "inr")
+        if not any(k in text_lower for k in FAST_PREFILTER_KEYWORDS):
+            return {"is_lead": False, "confidence": 0.0, "matched_keywords": [], "is_excluded": False}
+
         # 1. Check generic job seeker exclusions (e.g. "For Hire / Hire Me" posts)
         for excl_pattern in GENERIC_EXCLUSION_PATTERNS:
             if excl_pattern.search(full_text):

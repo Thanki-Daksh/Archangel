@@ -228,14 +228,20 @@ END CRM LEAD REPORT #{post_id:05d}
 
 
 class SwarmFileWriter:
-    """Handles buffered file output for leads. Used by BatchWriter."""
+    """Handles buffered file output for leads with rotating micro-log files every 100 leads."""
 
-    def __init__(self, output_path: Optional[Path] = None) -> None:
+    def __init__(self, output_path: Optional[Path] = None, max_leads_per_file: int = 100) -> None:
         self.output_path = output_path or Path("data/swarm_leads.log")
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
         if not self.output_path.exists():
             self.output_path.touch()
         self._file_handle = None
+
+        # Rotating Micro-Log Files (Idea #8: 100 leads per part file)
+        self.max_leads_per_file = max_leads_per_file
+        self.total_written_leads = 0
+        self.parts_dir = self.output_path.parent / "leads_parts"
+        self.parts_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_file_handle(self):
         if self._file_handle is None or self._file_handle.closed:
@@ -245,13 +251,23 @@ class SwarmFileWriter:
         return self._file_handle
 
     def write_batch(self, blocks: List[str]) -> None:
-        """Write multiple formatted lead blocks in a single file operation."""
+        """Write multiple formatted lead blocks to main log and rotating micro-log part files."""
         if not blocks:
             return
+        # 1. Main log file (continuous stream)
         f = self._get_file_handle()
         f.write("\n\n".join(blocks))
         f.write("\n\n")
         f.flush()
+
+        # 2. Rotating micro-log files (Idea #8: 100 leads per part file)
+        for block in blocks:
+            self.total_written_leads += 1
+            part_index = (self.total_written_leads - 1) // self.max_leads_per_file + 1
+            part_file = self.parts_dir / f"swarm_leads_part_{part_index:03d}.log"
+            with part_file.open("a", encoding="utf-8") as pf:
+                pf.write(block)
+                pf.write("\n\n")
 
     def close(self) -> None:
         """Close the file stream gracefully."""

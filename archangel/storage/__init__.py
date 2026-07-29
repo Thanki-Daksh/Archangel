@@ -52,13 +52,16 @@ class StorageBackend:
                 cls._instance = None
 
     def _configure_db(self) -> None:
-        """Apply performance and concurrency pragmas to SQLite."""
+        """Apply high-performance WAL mode and memory pragmas to SQLite."""
         try:
             with self._write_lock:
                 cursor = self._conn.cursor()
                 cursor.execute("PRAGMA journal_mode=WAL;")
-                cursor.execute("PRAGMA busy_timeout=5000;")
+                cursor.execute("PRAGMA busy_timeout=10000;")
                 cursor.execute("PRAGMA synchronous=NORMAL;")
+                cursor.execute("PRAGMA cache_size=-64000;")  # 64MB RAM Cache
+                cursor.execute("PRAGMA temp_store=MEMORY;")   # Temp tables in RAM
+                cursor.execute("PRAGMA mmap_size=268435456;") # 256MB Memory-Mapped I/O
                 self._conn.commit()
         except Exception as exc:
             logger.warning("Failed to apply SQLite pragmas: %s", exc)
