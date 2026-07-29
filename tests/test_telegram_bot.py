@@ -1,68 +1,61 @@
-"""Unit tests for TelegramSwarmBot commands and live telemetry dashboard."""
+"""Unit tests for TelegramSwarmBot and PersonalInstructionsStore (Batch 1)."""
 
 import pytest
-from archangel.notifications.telegram_bot import TelegramSwarmBot, render_telegram_dashboard
-from archangel.storage import StorageBackend
+from pathlib import Path
+from archangel.config.personal_instructions import PersonalInstructionsStore
+from archangel.agents.swarm.telegram_bot import TelegramSwarmBot
 
 
-@pytest.fixture
-def temp_storage(tmp_path):
-    db_path = tmp_path / "test_telegram.db"
-    return StorageBackend(db_path=str(db_path))
+def test_personal_instructions_store(tmp_path: Path):
+    config_file = tmp_path / "user_instructions.json"
+    store = PersonalInstructionsStore(config_path=config_file)
+
+    assert "Next.js" in store.data["preferred_stack"]
+    ctx = store.get_pitch_context()
+    assert "Developer Bio" in ctx
+
+    res = store.update_instruction("Focus on building Fast-API + Next.js SaaS MVPs under 2 weeks.")
+    assert "Updated personal instructions" in res
+    assert store.data["custom_instructions"] == "Focus on building Fast-API + Next.js SaaS MVPs under 2 weeks."
+    assert config_file.exists()
 
 
-@pytest.mark.asyncio
-async def test_telegram_bot_help(temp_storage):
-    bot = TelegramSwarmBot(storage=temp_storage)
-    res = await bot.handle_command("/help")
-    assert "ARCHANGEL TELEGRAM BOT COMMANDS" in res
-    assert "/swarm_start" in res
-    assert "/swarm_live" in res
+def test_telegram_bot_keyboards():
+    bot = TelegramSwarmBot(token="TEST_TOKEN", chat_id="123456")
+    kb = bot.build_lead_inline_keyboard(target_url="https://reddit.com/r/forhire/comments/123456")
+
+    assert "inline_keyboard" in kb
+    rows = kb["inline_keyboard"]
+    assert len(rows) == 2
+
+    row0 = rows[0]
+    assert row0[0]["text"] == "💬 DM Client"
+    assert row0[0]["url"] == "https://reddit.com/r/forhire/comments/123456"
+    assert row0[1]["text"] == "⚡ Quick Pitch"
+    assert "pitch:" in row0[1]["callback_data"]
 
 
-@pytest.mark.asyncio
-async def test_telegram_bot_status_and_live(temp_storage):
-    bot = TelegramSwarmBot(storage=temp_storage)
-    status_res = await bot.handle_command("/swarm_status")
-    assert "ARCHANGEL AGENT SWARM TELEMETRY" in status_res
-    assert "Scanned Posts:" in status_res
+def test_telegram_bot_quick_pitch(tmp_path: Path):
+    config_file = tmp_path / "user_instructions.json"
+    store = PersonalInstructionsStore(config_path=config_file)
+    store.update_instruction("Specializing in fast Python microservices.")
 
-    live_res = await bot.handle_command("/swarm_live")
-    assert "Live Telemetry Dashboard Activated" in live_res
-    assert bot._is_live is True
+    bot = TelegramSwarmBot(token="TEST_TOKEN", chat_id="123456")
+    bot.instructions_store = store
 
-    # Toggle off
-    live_off = await bot.handle_command("/swarm_live")
-    assert "paused" in live_off
-    assert bot._is_live is False
+    pitch = bot.generate_quick_pitch(post_text="Need Senior Python Developer for scraping pipeline")
+    assert "Python" in pitch or "Next.js" in pitch
+    assert "architecture" in pitch.lower()
 
 
-@pytest.mark.asyncio
-async def test_telegram_bot_swarm_lifecycle(temp_storage):
-    bot = TelegramSwarmBot(storage=temp_storage)
-    start_res = await bot.handle_command("/swarm_start 30s")
-    assert "Agent Swarm Launched" in start_res
-    assert bot.swarm_manager is not None
-    assert bot.swarm_manager.is_running is True
+def test_natural_language_swarm_cmd():
+    bot = TelegramSwarmBot(token="TEST_TOKEN", chat_id="123456")
+    msg = "btw bro can you start the agent swarm? i need 1k workers, intermediate level, i look for 15k inr budget"
+    parsed = bot.parse_natural_language_swarm_cmd(msg)
 
-    # Stop swarm
-    stop_res = await bot.handle_command("/swarm_stop")
-    assert "Agent Swarm Stopped Cleanly" in stop_res
-    assert bot.swarm_manager.is_running is False
+    assert parsed["is_swarm_cmd"] is True
+    assert parsed["action"] == "start"
+    assert parsed["workers"] == 1000
+    assert parsed["budget"] == "15kinr"
+    assert "intermediate" in parsed["tiers"]
 
-
-def test_render_telegram_dashboard():
-    metrics = {
-        "scanned_count": 150,
-        "qualified_count": 12,
-        "discovery_queue_size": 5,
-        "storage_queue_size": 0,
-        "total_flushed": 12,
-        "total_failed": 0,
-        "avg_flush_duration_ms": 14.5,
-    }
-    rendered = render_telegram_dashboard(metrics, elapsed=125, duration_str="3h", active=True)
-    assert "150" in rendered
-    assert "12" in rendered
-    assert "00:02:05" in rendered
-    assert "🟢 RUNNING" in rendered

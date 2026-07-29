@@ -22120,3 +22120,2051 @@ END CRM LEAD REPORT #00990
 ==================================================
 
 
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #00991 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #00991
+Lead Type: PAIN_DISCUSSION
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:12:39 UTC
+
+[2. COMPANY PROFILE]
+Company Name: LamsOfJos
+Target Domain: N/A
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: LamsOfJos
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: N/A
+Post URL: https://github.com/Cylo-Traders/Agrocylo-Global/issues/717
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: N/A/100
+Response Speed (TTFB): N/A
+SSL Status: No SSL / Insecure
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Marketing
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Engineering Support
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: PAIN_DISCUSSION
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 8.5 / 100.0
+Opportunity Score: 10.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 30.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.75
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 30/100 (contrib +6.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Saw you're tackling marketing challenges at LamsOfJos."
+Value Proposition: "We specialize in solving marketing bottlenecks to help engineering teams ship reliably."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+[Contract] Orphaned dead "registry" contract crate at agro-production/contract/src is not a workspace member and duplicates agro-production/contract/registry
+
+**Severity:** Medium
+
+### Problem
+
+`agro-production/contract/src/lib.rs`, `agro-production/contract/src/test.rs`, and `agro-production/contract/Cargo.toml` (a standalone package literally named `registry`) still exist in the tree, but the real, actively-developed registry contract lives at `agro-production/contract/registry/` and is the one listed in the root workspace `[workspace] members`. The `agro-production/contract/src` crate predates the reorganization into per-contract subdirectories (registry/, production_escrow/, investment_basket/, governance/) and is not built, not tested, and not referenced by anything — but it's also still cited as in-scope by `contracts/SECURITY_AUDIT.md` (as "Campaign"), which is misleading (see companion documentation issue).
+
+### Failure scenario
+
+New contributors grepping for "registry contract" or "Campaign" find two different, contradictory implementations with no indication one is dead. Nothing currently breaks from its presence, but it's confusin
+"""
+
+==================================================
+END CRM LEAD REPORT #00991
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #00992 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #00992
+Lead Type: COMPANY_INTELLIGENCE
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:12:39 UTC
+
+[2. COMPANY PROFILE]
+Company Name: LamsOfJos
+Target Domain: N/A
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: LamsOfJos
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: N/A
+Post URL: https://github.com/Cylo-Traders/Agrocylo-Global/issues/716
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: N/A/100
+Response Speed (TTFB): N/A
+SSL Status: No SSL / Insecure
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: API integration
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Engineering Support
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: COMPANY_INTELLIGENCE
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 7.3 / 100.0
+Opportunity Score: 10.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 30.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.75
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 30/100 (contrib +6.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Saw you're tackling api integration challenges at LamsOfJos."
+Value Proposition: "We specialize in solving api integration bottlenecks to help engineering teams ship reliably."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+[Contract] require_governed_caller returns a different error variant in contracts/escrow (NotGoverned) vs production_escrow (NotAdmin) for the identical governance-mismatch case
+
+**Severity:** Low
+
+### Problem
+
+Both `contracts/escrow` and `agro-production/contract/production_escrow` implement the same `require_governed_caller` pattern from Issue #660 (governance contract once configured, admin-only fallback until then), copy-pasted with the same structure and doc comments. But when the caller doesn't match the configured governance contract, `contracts/escrow` returns `EscrowError::NotGoverned` while `production_escrow` returns `EscrowError::NotAdmin` — the same failure mode surfaces two different error codes depending on which of the two escrow contracts you're calling.
+
+### Impact
+
+Any client, indexer, or integration test written against one contract's governance-gating error code silently doesn't generalize to the other, which is confusing given the two contracts are meant to share this exact access-control pattern.
+
+### Acceptance criteria
+
+- [ ] Pick one convention (a dedicated `NotGoverned`-style variant is more precise and is recommended) and apply it co
+"""
+
+==================================================
+END CRM LEAD REPORT #00992
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #00993 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #00993
+Lead Type: COMPANY_INTELLIGENCE
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:12:39 UTC
+
+[2. COMPANY PROFILE]
+Company Name: LamsOfJos
+Target Domain: N/A
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: LamsOfJos
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: N/A
+Post URL: https://github.com/Cylo-Traders/Agrocylo-Global/issues/715
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: N/A/100
+Response Speed (TTFB): N/A
+SSL Status: No SSL / Insecure
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Talent Sourcing
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Engineering Support
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: COMPANY_INTELLIGENCE
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 5.3 / 100.0
+Opportunity Score: 10.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 30.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.70
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 30/100 (contrib +6.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Noticed LamsOfJos is actively working with Rust."
+Value Proposition: "We have deep hands-on expertise in Rust and help teams scale production systems rapidly."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+[Contract] contracts/escrow: test_mark_delivered_twice_succeeds fails on main — test never advances the ledger clock
+
+**Severity:** Medium
+
+### Problem
+
+`test::test_mark_delivered_twice_succeeds` currently fails when actually run (`cargo test -p escrow`):
+
+```
+thread 'test::test_mark_delivered_twice_succeeds' panicked: called `Result::unwrap_err()` on an `Ok` value: Ok(())
+```
+
+The test calls `mark_delivered` twice and expects the second call to fail with `OrderNotPending` (guarded by `order.delivery_timestamp > 0`). But the test never calls `env.ledger().set_timestamp(...)`, so `env.ledger().timestamp()` stays at its default of 0 for both calls, `delivery_timestamp` is set to 0 on the first call, and the guard never trips — the second call succeeds instead of failing as asserted. In production this isn't exploitable (real ledger time is always greater than 0), but the test as written doesn't actually exercise the guard it claims to test, and currently just fails outright since nothing runs `cargo test` in CI to catch it (see companion CI-gap issue).
+
+### Acceptance criteria
+
+- [ ] Advance the ledger 
+"""
+
+==================================================
+END CRM LEAD REPORT #00993
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #00994 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #00994
+Lead Type: PAIN_DISCUSSION
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:12:39 UTC
+
+[2. COMPANY PROFILE]
+Company Name: LamsOfJos
+Target Domain: N/A
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: LamsOfJos
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: N/A
+Post URL: https://github.com/Cylo-Traders/Agrocylo-Global/issues/714
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: N/A/100
+Response Speed (TTFB): N/A
+SSL Status: No SSL / Insecure
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Marketing
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Engineering Support
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: PAIN_DISCUSSION
+Difficulty Tier: MASTER (No experience requirement listed on post (0 years), Contains Master technical scope (Low latency/Security audit/Kernel))
+Sales Readiness: 9.0 / 100.0
+Opportunity Score: 10.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 30.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.75
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 30/100 (contrib +6.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Saw you're tackling marketing challenges at LamsOfJos."
+Value Proposition: "We specialize in solving marketing bottlenecks to help engineering teams ship reliably."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+[Contract] contracts/escrow: dead Campaign/Investment/CampaignStatus types and unused Map import left over from a dropped feature
+
+**Severity:** Low
+
+### Problem
+
+`contracts/escrow/src/lib.rs` defines `CampaignStatus`, `Investment`, and `Campaign` `#[contracttype]`s that are never referenced anywhere else in the file — no storage key, no function uses them. It also imports `Map` from `soroban_sdk` (compiler warning: unused import `Map`) which is likewise never used. This contract has no campaign/investment functionality at all (that lives in `production_escrow`) — these look like copy-paste leftovers from a dropped or never-implemented feature.
+
+### Acceptance criteria
+
+- [ ] Remove the unused `Campaign`, `Investment`, `CampaignStatus` types and the `Map` import from `contracts/escrow/src/lib.rs`.
+- [ ] Confirm `cargo check -p escrow` is warning-free afterward.
+- [ ] Confirm no external client/binding depends on these types being present in this contract's exported interface before removing (check `client/`, `agro-production/client/` generated bindings).
+
+"""
+
+==================================================
+END CRM LEAD REPORT #00994
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #00995 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #00995
+Lead Type: PAIN_DISCUSSION
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:12:39 UTC
+
+[2. COMPANY PROFILE]
+Company Name: LamsOfJos
+Target Domain: N/A
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: LamsOfJos
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: N/A
+Post URL: https://github.com/Cylo-Traders/Agrocylo-Global/issues/713
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: N/A/100
+Response Speed (TTFB): N/A
+SSL Status: No SSL / Insecure
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Security, Frontend
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Engineering Support
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: PAIN_DISCUSSION
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 8.0 / 100.0
+Opportunity Score: 10.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 30.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.65
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 30/100 (contrib +6.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Saw you're tackling security challenges at LamsOfJos."
+Value Proposition: "We specialize in solving security bottlenecks to help engineering teams ship reliably."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+[Contract] contracts/escrow: refund_expired_orders (batch) has no auth check, inconsistent with the buyer-gated singular refund_expired_order
+**Severity:** Medium
+### Problem
+`refund_expired_order(env, caller: Address, order_id)` requires `caller.require_auth()` and restricts the caller to `order.buyer`. Its batch sibling, `refund_expired_orders(env, order_ids: Vec)`, has no `caller` parameter and no auth check at all — anyone can invoke it for any list of order IDs. Funds still route to each order's recorded `buyer`, so this isn't a direct fund-theft vector, but the two functions enforce completely different access-control models for what is conceptually the same action.
+The batch version also aborts the entire call on the first order that isn't yet expired (`return Err(...)` inside the loop), so a caller can't refund the legitimately-expired orders in a batch without first filtering out any not-yet-expired ones client-side — a single bad ID DoSes the whole batch.
+### Acceptance criteria
+- [ ] Decide and document the intended model: either make the batch version explicitly permissionless-by-design (add a doc comme
+"""
+
+==================================================
+END CRM LEAD REPORT #00995
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #00996 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #00996
+Lead Type: COMPANY_INTELLIGENCE
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:12:39 UTC
+
+[2. COMPANY PROFILE]
+Company Name: LamsOfJos
+Target Domain: N/A
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: LamsOfJos
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: N/A
+Post URL: https://github.com/Cylo-Traders/Agrocylo-Global/issues/712
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: N/A/100
+Response Speed (TTFB): N/A
+SSL Status: No SSL / Insecure
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Talent Sourcing
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Engineering Support
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: COMPANY_INTELLIGENCE
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 5.3 / 100.0
+Opportunity Score: 10.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 30.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.65
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 30/100 (contrib +6.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Noticed LamsOfJos is actively working with Rust."
+Value Proposition: "We have deep hands-on expertise in Rust and help teams scale production systems rapidly."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+[Contract] rust-toolchain.toml pins Rust 1.81.0 but current transitive dependencies require edition2024 — fresh dependency resolution breaks
+
+**Severity:** High
+
+### Problem
+
+`rust-toolchain.toml` pins `channel = "1.81.0"`. Even after fixing the invalid `soroban-sdk` version pin (see companion issue), running `cargo update`/a fresh `cargo check` on the workspace pulls in `base64ct v1.8.3`, which requires Cargo's `edition2024` feature — unsupported on 1.81.0:
+
+```
+error: failed to download `base64ct v1.8.3`
+the package requires the Cargo feature called `edition2024`, but that feature is not stabilized in this version of Cargo (1.81.0)
+```
+
+### Failure scenario
+
+The pinned toolchain can build only if `Cargo.lock` is used exactly as-is and nothing ever triggers re-resolution. Any contributor who adds a dependency, bumps a version, or runs `cargo update` on a clean environment gets a hard failure with no clear fix, since the error message doesn't point at the real cause (a workspace-wide toolchain/dependency mismatch).
+
+### Acceptance criteria
+
+- [ ] Either pin a newer Rust toolchain compatible with current dependency requiremen
+"""
+
+==================================================
+END CRM LEAD REPORT #00996
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #00997 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #00997
+Lead Type: COMPANY_INTELLIGENCE
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:12:39 UTC
+
+[2. COMPANY PROFILE]
+Company Name: LamsOfJos
+Target Domain: N/A
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: LamsOfJos
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: N/A
+Post URL: https://github.com/Cylo-Traders/Agrocylo-Global/issues/711
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: N/A/100
+Response Speed (TTFB): N/A
+SSL Status: No SSL / Insecure
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Talent Sourcing
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Engineering Support
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: COMPANY_INTELLIGENCE
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 6.4 / 100.0
+Opportunity Score: 10.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 30.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.75
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 30/100 (contrib +6.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Noticed LamsOfJos is actively working with Rust."
+Value Proposition: "We have deep hands-on expertise in Rust and help teams scale production systems rapidly."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+[Contract] agro-production/contract/production_escrow/src/test.rs is corrupted — cargo test cannot compile the crate
+
+**Severity:** Critical
+
+### Problem
+
+`agro-production/contract/production_escrow/src/test.rs` has a mangled section around line 2577: `test_reject_confirm_order_after_settlement` opens with an empty function body that is never closed before the next section's comment header and `#[test]` fn begin, and `test_confirm_order_before_settlement_allowed` immediately after references `t`/`id` that are never bound in that function. This is the same class of damage as #679 (a merge silently mangling a Rust source file), just discovered in `production_escrow`'s test file instead of `contracts/escrow`'s lib.rs.
+
+### Failure scenario
+
+`cargo test -p production-escrow-v2` fails to parse with "this file contains an unclosed delimiter" and cannot compile at all — none of `production_escrow`'s (the contract holding real buyer/investor funds) tests can run. Confirmed via diff that this predates and is unrelated to any work done on #679/#680; `cargo check` doesn't catch it because it doesn't compile the 
+"""
+
+==================================================
+END CRM LEAD REPORT #00997
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #00998 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #00998
+Lead Type: COMPANY_INTELLIGENCE
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:12:39 UTC
+
+[2. COMPANY PROFILE]
+Company Name: LamsOfJos
+Target Domain: N/A
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: LamsOfJos
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: N/A
+Post URL: https://github.com/Cylo-Traders/Agrocylo-Global/issues/710
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: N/A/100
+Response Speed (TTFB): N/A
+SSL Status: No SSL / Insecure
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Talent Sourcing
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Engineering Support
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: COMPANY_INTELLIGENCE
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 6.4 / 100.0
+Opportunity Score: 10.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 30.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.75
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 30/100 (contrib +6.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Noticed LamsOfJos is actively working with Rust."
+Value Proposition: "We have deep hands-on expertise in Rust and help teams scale production systems rapidly."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+[Contract] Root Cargo.toml pins soroban-sdk = "22.1.1", a version that has never existed on crates.io — breaks cargo check for the entire workspace
+
+**Severity:** Critical
+
+### Problem
+
+Root `Cargo.toml` pins `soroban-sdk = { version = "22.1.1" }` under `[workspace.dependencies]`, and `docs/TOOLCHAIN.md` documents the same version as the intended pin. That version has never been published to crates.io — the closest real releases in the 22.x line are 22.0.0, 22.0.8, 22.0.9, and 22.0.11. `Cargo.lock` itself already has 22.0.11 resolved, so the lockfile and the manifest disagree.
+
+### Failure scenario
+
+Any fresh clone, any `cargo check`/`cargo build`/`cargo test` that needs to re-resolve dependencies (new contributor, CI, a bumped transitive dependency) fails immediately with:
+
+```
+error: failed to select a version for the requirement `soroban-sdk = "^22.1.1"`
+candidate versions found which didn't match: 27.0.3, 27.0.2, 27.0.1, ...
+```
+
+This blocks all 5 Rust contract crates (`contracts/escrow`, `agro-production/contract/{registry,production_escrow,investment_basket,governance}`) simultaneously. It was hit and worked around locally wh
+"""
+
+==================================================
+END CRM LEAD REPORT #00998
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #00999 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #00999
+Lead Type: PAIN_DISCUSSION
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:12:39 UTC
+
+[2. COMPANY PROFILE]
+Company Name: Developers
+Target Domain: developers.openai.com
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: lbudzynowski
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: developers.openai.com
+Post URL: https://github.com/openai/codex/issues/35928
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Tailwind CSS
+
+[6. AI READINESS MATRIX]
+Maturity Tier: AI Adopter
+Detected AI Tech: OpenAI
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: 65/100
+Response Speed (TTFB): 1753ms
+SSL Status: HTTPS Enabled
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Automation, LLM, Manual workflow, Backend
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: AI Automation, AI Chatbot
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: PAIN_DISCUSSION
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 13.1 / 100.0
+Opportunity Score: 31.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 90.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.75
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 90/100 (contrib +18.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Saw you're tackling automation challenges at Developers."
+Value Proposition: "We specialize in solving automation bottlenecks to help engineering teams ship reliably."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+Remote Connections docs contradict the new `codex remote-control pair` CLI workflow
+
+### Documentation issue
+
+The current **Remote connections** documentation says that:
+
+- Remote hosts must run the ChatGPT desktop app on macOS or Windows.
+- Mobile setup cannot be started from the Codex CLI or IDE extension.
+- Setup must start in the desktop app.
+
+Source: https://developers.openai.com/codex/remote-connections
+
+However, the current **Developer commands** documentation now explicitly documents an experimental CLI/headless workflow:
+
+```bash
+codex remote-control start
+codex remote-control pair
+```
+
+It says that `start` launches the local app-server daemon with Remote Control enabled and that `pair` prints a short-lived manual pairing code. The JSON output includes `pairingCode`, `manualPairingCode`, `environmentId`, and `expiresAt`.
+
+Source: https://developers.openai.com/codex/developer-commands#codex-remote-control
+
+### Why this is confusing
+
+A Linux or headless host now appears to have an officially documented pairing path through Codex CLI, but the primary Remote Conne
+"""
+
+==================================================
+END CRM LEAD REPORT #00999
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #01000 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #01000
+Lead Type: PAIN_DISCUSSION
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:12:39 UTC
+
+[2. COMPANY PROFILE]
+Company Name: Desktop auto
+Target Domain: N/A
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: genzorr
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: N/A
+Post URL: https://github.com/openai/codex/issues/35733
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: N/A/100
+Response Speed (TTFB): N/A
+SSL Status: No SSL / Insecure
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Backend
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Backend Integration
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: PAIN_DISCUSSION
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 9.6 / 100.0
+Opportunity Score: 10.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 30.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.90
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 30/100 (contrib +6.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Saw you're tackling backend challenges at Desktop auto."
+Value Proposition: "We specialize in solving backend bottlenecks to help engineering teams ship reliably."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+Desktop auto-connects discovered SSH hosts at startup and blocks local chat loading when a host is unavailable
+### What issue are you seeing?
+Codex Desktop eagerly auto-connects every saved/discovered SSH host during application startup, even when I only want to open local conversations. If a discovered host is unavailable or its remote app-server is slow to bootstrap, local chat loading becomes blank/unresponsive.
+The startup log shows this sequence:
+```text
+load_completed savedRemoteConnectionCount=2 totalConnectionCount=2
+refresh_completed autoConnectConnectionCount=2 discoveredConnectionCount=2
+Starting app-server connection hostId=remote-ssh-discovered: transport=websocket
+Starting app-server connection hostId=remote-ssh-discovered: transport=websocket
+```
+One host cannot resolve and retries indefinitely:
+```text
+ssh: Could not resolve hostname
+remoteConnectionMaxRetryAttempts=null
+app_server_connection.reconnect_scheduled ... nextDelayMs=20000
+```
+The other host's app-server bootstrap initially times out after 60 seconds. While it is c
+"""
+
+==================================================
+END CRM LEAD REPORT #01000
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #01001 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #01001
+Lead Type: PAIN_DISCUSSION
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:15:47 UTC
+
+[2. COMPANY PROFILE]
+Company Name: Linkedin
+Target Domain: linkedin.com
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: mxteuss
+Primary Email: N/A
+Social Handles: linkedin: mateus-santosss
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: linkedin.com
+Post URL: https://github.com/backend-br/me-contrata/issues/188
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: 85/100
+Response Speed (TTFB): 981ms
+SSL Status: HTTPS Enabled
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Backend, API integration, Frontend, Infrastructure
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Backend Integration
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: PAIN_DISCUSSION
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 14.0 / 100.0
+Opportunity Score: 31.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 90.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.70
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 90/100 (contrib +18.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Saw you're tackling backend challenges at Linkedin."
+Value Proposition: "We specialize in solving backend bottlenecks to help engineering teams ship reliably."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+Mateus de Santana Santos
+
+
+## Nome completo
+
+Mateus de Santana Santos
+
+## Apresentação
+
+Desenvolvedor Backend em formação especializado em Java e Spring Boot. Experiência com arquitetura de microserviços, APIs REST, mensageria assíncrona e práticas de código limpo. Vivência em projetos reais e acadêmicos com foco em escalabilidade, testes automatizados e design orientado a objetos. Busca contribuir com soluções técnicas robustas em ambientes colaborativos e dinâmicos.
+
+## Especialidades
+
+Desenvolvimento Fullstack, focado em Backend
+Java
+Spring boot
+PostgreSQL
+Docker
+AWS (EC2)
+Javascript
+Typescript
+HTML
+CSS
+jQuery
+Bootstrap
+
+## Alocação
+
+Remoto, híbrido ou presencial.
+
+## Contratação
+
+CLT ou PJ
+
+## Contato
+
+- [Linkedin](https://www.linkedin.com/in/mateus-santosss/) 
+## Labels
+
+
+
+### Nível
+
+- Estagiário
+- Júnior
+
+### Regime
+
+- PJ
+- CLT
+- Contrato
+- Freelance
+
+### Alocação
+
+- Remoto
+- Híbrido
+- Presencial
+
+"""
+
+==================================================
+END CRM LEAD REPORT #01001
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #01002 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #01002
+Lead Type: COMPANY_INTELLIGENCE
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:15:47 UTC
+
+[2. COMPANY PROFILE]
+Company Name: only1chunts
+Target Domain: N/A
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: only1chunts
+Primary Email: N/A
+Social Handles: github: user-attachments
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: N/A
+Post URL: https://github.com/gigascience/gigadb-website/issues/2342
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: N/A/100
+Response Speed (TTFB): N/A
+SSL Status: No SSL / Insecure
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Talent Sourcing
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Engineering Support
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: COMPANY_INTELLIGENCE
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 4.9 / 100.0
+Opportunity Score: 10.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 30.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.60
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 30/100 (contrib +6.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Saw what you're building at only1chunts and wanted to reach out."
+Value Proposition: "We help teams scale their engineering and ship features faster without full-time hiring overhead."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+add link to funder usage
+
+## User story
+
+>As a curator
+>I want to find out where Funders with no ROR/Fundref ID are being used
+>So that I can correct them
+
+
+## Acceptance criteria
+
+>Given I am on the Dataset Funders admin page
+>When I look at the table
+>Then I can see a Uri column showing the Uri of funders
+
+>Given I am on the Dataset Funders admin page
+>When I look at the table
+>Then I can see a Uri column that can be sorted and is filtrable
+
+
+
+
+
+
+## Additional Info
+related to #2333 
+
+## Screenshots/wireframes
+
+![Image](https://github.com/user-attachments/assets/53a97f57-c69f-467a-a4c9-16a2ca39cb00)
+
+![Image](https://github.com/user-attachments/assets/06de714f-592b-4d15-b1ad-52ae76369f67)
+
+
+## Product Backlog Item Ready Checklist
+
+* [ ] Business value is clearly articulated
+* [ ] Item is understood enough by the IT team so it can make an informed decision as to whether it can complete this item
+* [ ] Dependencies are identified and no external dependencies would block this item from being completed
+* [ ] At th
+"""
+
+==================================================
+END CRM LEAD REPORT #01002
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #01003 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #01003
+Lead Type: PAIN_DISCUSSION
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:15:47 UTC
+
+[2. COMPANY PROFILE]
+Company Name: Sketchfab
+Target Domain: sketchfab.com
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: only1chunts
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: sketchfab.com
+Post URL: https://github.com/gigascience/gigadb-website/issues/2232
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: 100/100
+Response Speed (TTFB): 1372ms
+SSL Status: HTTPS Enabled
+SEO / Social Tags: Optimized
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Customer support, Analytics, Website
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: AI Chatbot
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: PAIN_DISCUSSION
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 12.2 / 100.0
+Opportunity Score: 31.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 90.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.65
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 90/100 (contrib +18.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Saw you're tackling customer support challenges at Sketchfab."
+Value Proposition: "We specialize in solving customer support bottlenecks to help engineering teams ship reliably."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+extend 3d viewer capabilities to VR
+
+
+## User story
+
+>As a website user  
+>I want to be able to view VR 3d models  
+>So that I be more immersed in the data
+
+
+## Acceptance criteria
+
+
+>Given there is a dataset with associated 3D models files meant for VR  
+>When I navigate to the dataset page from a WebXR capable device
+>and I switch to the 3D models tab
+>Then I can the object in VR
+
+
+
+
+## Additional Info
+
+One feature that Sketchfab offer is to view the 3d images in "VR"
+
+for example see: https://sketchfab.com/models/71ceee228fff4c02bbd99df462eb16a5/embed?autostart=1&cardboard=1&internal=1&tracking=0&ui_ar=0&ui_infos=0&ui_snapshots=1&ui_stop=0&ui_theatre=1&ui_watermark=0
+
+@luistoptal Is that something that can be added to our 3d viewer?
+If the answer is yes, we can expand this ticket and plan it into future work. If its a flat no, then we can close this ticket now!
+
+
+
+## Product Backlog Item Ready Checklist
+
+* [ ] Business value is clearly articulated
+* [ ] Item is understood enough by the IT team so it can make an informe
+"""
+
+==================================================
+END CRM LEAD REPORT #01003
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #01004 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #01004
+Lead Type: COMPANY_INTELLIGENCE
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:15:47 UTC
+
+[2. COMPANY PROFILE]
+Company Name: Staging
+Target Domain: staging.gigadb.org
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: molcretb
+Primary Email: N/A
+Social Handles: github: user-attachments
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: staging.gigadb.org
+Post URL: https://github.com/gigascience/gigadb-website/issues/2215
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: 45/100
+Response Speed (TTFB): N/A
+SSL Status: HTTPS Enabled
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Talent Sourcing
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Website Redesign & Performance Optimization
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: COMPANY_INTELLIGENCE
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 9.1 / 100.0
+Opportunity Score: 31.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 90.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.65
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 90/100 (contrib +18.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Was reviewing Staging and noticed slow load times (>1.5s ttfb) hurting conversions."
+Value Proposition: "We specialize in optimizing performance diagnostics and conversion infrastructure."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+File attribute's unit is not displayed in the file tab
+
+**Describe the bug**
+> As a user
+>When I am on a dataset page
+>And I look at the file tab
+>Then I do not see the unit associated with a file's attribute if this attribute has a non-empty unit value
+
+**To Reproduce**
+Steps to reproduce the behavior:
+1. As admin, go to the file edit page of a file (e.g https://staging.gigadb.org/adminFile/update/id/549208)
+2. Add a new attribute (e.g. 'Estimated genome size'), put any value and select a unit (e.g. MegaBasePair)
+3. Go to the dataset page, file tab
+4. See the updated file attribute is missing the unit
+
+**Expected behavior**
+When a unit is filled with a file's attribute, I want this unit to be displayed along with the attribute's value.
+
+**Screenshots**
+
+![Image](https://github.com/user-attachments/assets/f128336f-f7e6-48de-b1a3-2afab68e82fc)
+
+
+**Additional context**
+Minor bug, as we can add the unit with the value ('618.1' --> '618.1 Mb'), but it would still be great to fix it
+
+"""
+
+==================================================
+END CRM LEAD REPORT #01004
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #01005 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #01005
+Lead Type: COMPANY_INTELLIGENCE
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:15:47 UTC
+
+[2. COMPANY PROFILE]
+Company Name: luistoptal
+Target Domain: N/A
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: luistoptal
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: N/A
+Post URL: https://github.com/gigascience/gigadb-website/issues/2205
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: N/A/100
+Response Speed (TTFB): N/A
+SSL Status: No SSL / Insecure
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Customer support
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Engineering Support
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: COMPANY_INTELLIGENCE
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 7.3 / 100.0
+Opportunity Score: 10.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 30.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.65
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 30/100 (contrib +6.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Saw you're tackling customer support challenges at luistoptal."
+Value Proposition: "We specialize in solving customer support bottlenecks to help engineering teams ship reliably."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+Submission wizard dataset description length warning
+
+## User story
+
+> As a author in the submission wizard
+> I want to be warned when I enter a dataset description (abstract) that is too long
+> So that I dont provide a description that is too long
+
+
+## Acceptance criteria
+
+
+> Given I am submitting a dataset via the submission wizard
+> When I enter the dataset description
+> And it is over 250 words in length
+> Then I see a warning to tell me its getting too long
+
+> Given I am submitting a dataset via the submission wizard
+> When I enter the dataset description
+> And it is over 500 words in length
+> Then I am prevented from submitting the dataset with the reason shown (Description is too long)
+
+
+## Additional Info
+
+This is a split of ticket #2177  that includes the stories related to the submission wizard. See comments in #2177
+
+It depends on the submission wizard works to be started
+
+
+## Product Backlog Item Ready Checklist
+
+* [ ] Business value is clearly articulated
+* [ ] Item is understood enough by the IT team so it can make an inform
+"""
+
+==================================================
+END CRM LEAD REPORT #01005
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #01006 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #01006
+Lead Type: COMPANY_INTELLIGENCE
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:15:47 UTC
+
+[2. COMPANY PROFILE]
+Company Name: rija
+Target Domain: N/A
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: rija
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: N/A
+Post URL: https://github.com/gigascience/gigadb-website/issues/1354
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: N/A/100
+Response Speed (TTFB): N/A
+SSL Status: No SSL / Insecure
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Sales, Customer support, API integration, Frontend, DevOps, Infrastructure, Website
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Engineering Support
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: COMPANY_INTELLIGENCE
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 7.7 / 100.0
+Opportunity Score: 10.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 30.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.65
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 30/100 (contrib +6.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Saw you're tackling sales challenges at rija."
+Value Proposition: "We specialize in solving sales bottlenecks to help engineering teams ship reliably."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+Update gigadb.org/site/ to pull content from CraftCMS
+
+## Story
+
+As a website user
+I want to see up-to-date content on gigadb.org/site/
+So that I can easily access the right information 
+
+## Acceptance criteria
+
+Given content has been updated in CraftCMS
+When I navigate to the corresponding section of gigadb.org/site/
+Then I should see the updated content
+
+
+## Additional Infos
+
+Use `Vue.js 3` (with its Options API) to make component that match with Craft models
+test components with `Vitest`
+Use `Vite` as build pipeline
+
+
+There will be some preliminary task needed to be done (infrastructure side) by the tech team before this ticket can be worked on
+
+"""
+
+==================================================
+END CRM LEAD REPORT #01006
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #01007 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #01007
+Lead Type: COMPANY_INTELLIGENCE
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:15:47 UTC
+
+[2. COMPANY PROFILE]
+Company Name: rija
+Target Domain: N/A
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: rija
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: N/A
+Post URL: https://github.com/gigascience/gigadb-website/issues/1353
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: N/A/100
+Response Speed (TTFB): N/A
+SSL Status: No SSL / Insecure
+SEO / Social Tags: Missing OpenGraph
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: Custom software
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Engineering Support
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: COMPANY_INTELLIGENCE
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 7.3 / 100.0
+Opportunity Score: 10.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 30.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.65
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 30/100 (contrib +6.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Saw you're tackling custom software challenges at rija."
+Value Proposition: "We specialize in solving custom software bottlenecks to help engineering teams ship reliably."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+Migrate gigadb.org/site/ to Craft CMS
+
+## Story
+
+As a curator
+I want to be able to change the content under gigadb.org/site on my own
+So that gigadb.org/site can be kept up-to-date  quickly without using development resource
+
+
+## Acceptance criteria
+
+Given I want to manage content from gigadb.org/site
+When I login to CraftCMS as a content editor
+Then I can see all the content that's existing at gigadb.org/site
+
+Given I want to manage content from gigadb.org/site
+When I login to CraftCMS as a content editor
+Then I can manage, update or delete the content that's available at gigadb.org/site
+
+
+## Additional information
+
+* [ ] Content audit
+* [ ] Define content architecture based on gigadb.org/site/ and with input from curators
+* [ ] Start local setup and create and document content models and forms element in the CMS
+* [ ] Import content from static pages while providing training to curators for managing the content
+"""
+
+==================================================
+END CRM LEAD REPORT #01007
+==================================================
+
+
+==================================================
+=== ARCHANGEL CRM INTELLIGENCE LEAD #01008 ===
+==================================================
+
+[1. IDENTITY]
+Lead ID: #01008
+Lead Type: COMPANY_INTELLIGENCE
+Lifecycle Stage: ANALYZED
+Generated At: 2026-07-29 14:15:47 UTC
+
+[2. COMPANY PROFILE]
+Company Name: Jbrowse
+Target Domain: jbrowse.org
+Funding Stage: Bootstrapped / Early
+Team Size: 1-10
+
+[3. CONTACTS & SOCIALS]
+Author Handle: rija
+Primary Email: N/A
+Social Handles: None
+
+[4. WEBSITE & INFRASTRUCTURE]
+Domain: jbrowse.org
+Post URL: https://github.com/gigascience/gigadb-website/issues/1197
+Platform/Source: github (Channel: github_issues)
+
+[5. DETECTED TECH STACK]
+Frameworks / Infrastructure: Standard Stack
+
+[6. AI READINESS MATRIX]
+Maturity Tier: None
+Detected AI Tech: None
+
+[7. WEBSITE HEALTH DIAGNOSTICS]
+Health Score: 80/100
+Response Speed (TTFB): 2510ms
+SSL Status: HTTPS Enabled
+SEO / Social Tags: Optimized
+
+[8. PAIN TAXONOMY]
+Identified Pain Categories: API integration, Website
+
+[9. OPPORTUNITY MAPPING]
+Recommended Services: Engineering Support
+
+[10. COMMERCIAL & REVENUE ESTIMATE]
+Extracted Post Budget: Unbudgeted / Flexible (Confidence: 5%)
+Target Budget Filter: $115+
+Estimated ARR Range: $0 - $100K
+Buying Power Tier: Low
+
+[11. OUTREACH COMPETITION]
+Outreach Difficulty: Low
+Platform Saturation: 5%
+
+[12. LEAD SCORING MATRIX & EXPLAINABILITY]
+Lead Classification: COMPANY_INTELLIGENCE
+Difficulty Tier: BEGINNER (No experience requirement listed on post (0 years))
+Sales Readiness: 11.5 / 100.0
+Opportunity Score: 31.5 / 100.0
+Buying Intent: 0.0 / 100.0
+Hiring Signal: 0.0 / 100.0
+Company Quality: 90.0 / 100.0
+Priority Tier: LOW
+Filter Confidence: 0.65
+
+Detected Intent Evidence:
+  None detected
+
+Score Reasoning Breakdown:
+  + Buying Intent: 0/100 (contrib +0.0)
+  + Company Quality: 90/100 (contrib +18.0)
+  + Source Quality Weight: Generic Web / RSS Feed (35/100)
+  + Recency Decay: Fresh post (Timestamp unstated)
+  + Budget Detected: Unbudgeted / Flexible (Confidence: 5%)
+
+[13. RECOMMENDED PITCH ANGLE]
+Opening Angle: "Saw you're tackling api integration challenges at Jbrowse."
+Value Proposition: "We specialize in solving api integration bottlenecks to help engineering teams ship reliably."
+Call to Action: "Would you be open to a quick 10-minute chat this week to explore how we can help?"
+
+[14. RAW POST MESSAGE]
+"""
+Integrate with JBrowse 2
+
+## User story
+
+>As a website user
+>I want to be able to view genome assemblies and annotations in JBrowse 2
+>So that I can navigate genome features more easily
+
+
+
+## Additional Info
+
+[https://jbrowse.org/jb2/docs/](https://jbrowse.org/jb2/docs/)
+
+
+This impact a dozens of datasets which have "JBrowse" or "Genome browser"  as a type of external links.
+
+## Product Backlog Item Ready Checklist
+
+* [ ] Business value is clearly articulated
+* [ ] Item is understood enough by the IT team so it can make an informed decision as to whether it can complete this item
+* [ ] Dependencies are identified and no external dependencies would block this item from being completed
+* [ ] At the time of the scheduled sprint, the IT team has the appropriate composition to complete this item
+* [ ] This item is estimated and small enough to comfortably be completed in one sprint
+* [ ] Acceptance criteria are clear and testable
+* [ ] Performance criteria, if any, are defined and testable
+* 
+"""
+
+==================================================
+END CRM LEAD REPORT #01008
+==================================================
+
+

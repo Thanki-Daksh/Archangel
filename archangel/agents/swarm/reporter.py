@@ -134,9 +134,14 @@ class TelegramSwarmReporter:
         )
 
     async def send_lead_intelligence_report(self, report_data: Dict[str, Any]) -> None:
-        """Sends a structured Rich Lead Intelligence Report to Telegram."""
+        """Sends a structured Rich Lead Intelligence Report with Inline Keyboard Action Buttons to Telegram."""
         if not self.enabled:
             return
+
+        from archangel.agents.swarm.telegram_bot import TelegramSwarmBot
+        bot = TelegramSwarmBot.get_instance()
+        if bot.enabled:
+            await bot.send_lead_action_card(report_data)
 
         company = report_data.get("company_profile", {})
         pain = report_data.get("pain_categories", [])
