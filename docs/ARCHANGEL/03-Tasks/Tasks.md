@@ -7,6 +7,7 @@
 - [x] Silence worker backoff log spam above Rich Live Dashboard panel
 - [x] Implement Multi-Key Reddit OAuth Token Pool (`RedditTokenPool`) supporting 10+ keys for 1,000 req/min zero-block ingestion
 - [x] Verify full test suite passing (**16/16 swarm tests passing**)
+- [x] Fix `aa as` / `archangel swarm` premature exit bug (`self.is_running = True` initialization in `SwarmManager.run()`)
 
 ## Active Roadmap
 - [ ] Benchmark live multi-platform lead ingestion velocity over 1-hour continuous runs

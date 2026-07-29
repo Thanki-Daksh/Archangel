@@ -10,6 +10,16 @@ from archangel.agents.swarm.workers.base import BasePlatformWorker
 logger = logging.getLogger(__name__)
 
 
+_WEB_SEMAPHORE: asyncio.Semaphore | None = None
+
+
+def _get_web_semaphore() -> asyncio.Semaphore:
+    global _WEB_SEMAPHORE
+    if _WEB_SEMAPHORE is None:
+        _WEB_SEMAPHORE = asyncio.Semaphore(2)
+    return _WEB_SEMAPHORE
+
+
 class WebSearchWorker(BasePlatformWorker):
     """Executes web search queries across DuckDuckGo/Google for deep web buying signals."""
 
@@ -26,7 +36,7 @@ class WebSearchWorker(BasePlatformWorker):
             try:
                 from archangel.agents.chat import WebSearch
                 search_query = " ".join(query.split("+"))
-                raw_results = WebSearch().search(f"{search_query} hiring OR looking OR need", max_results=10)
+                raw_results = WebSearch().search(f"{search_query} hiring OR looking OR need", max_results=5)
 
                 entries = raw_results.split("\n\n")
                 for entry in entries:
@@ -60,4 +70,11 @@ class WebSearchWorker(BasePlatformWorker):
 
             return posts
 
-        return await loop.run_in_executor(self.get_executor(), _fetch)
+        async with _get_web_semaphore():
+            try:
+                return await asyncio.wait_for(
+                    loop.run_in_executor(self.get_executor(), _fetch),
+                    timeout=3.5
+                )
+            except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
+                return []

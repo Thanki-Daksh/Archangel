@@ -70,11 +70,8 @@ class SwarmPool:
             logger.warning("SwarmPool received empty targets list.")
             return
 
-        if len(targets) < self.max_workers:
-            import itertools
-            selected_targets = list(itertools.islice(itertools.cycle(targets), self.max_workers))
-        else:
-            selected_targets = targets[:self.max_workers]
+        # Select unique targets up to max_workers capacity (preventing duplicate URL workers)
+        selected_targets = targets[:self.max_workers]
 
         logger.info("Starting SwarmPool with %d active workers (max cap: %d)",
                     len(selected_targets), self.max_workers)

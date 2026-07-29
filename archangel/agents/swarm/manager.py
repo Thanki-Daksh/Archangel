@@ -55,8 +55,8 @@ class SwarmManager:
         telegram: bool = False,
         budget: Optional[str] = None,
         comments: Optional[str] = "0-20",
-        min_score: float = 50.0,
-        min_priority: str = "MEDIUM",
+        min_score: float = 0.0,
+        min_priority: str = "ALL",
     ) -> None:
         self.duration_str = duration
         self.duration_seconds = parse_duration_seconds(duration)
@@ -98,10 +98,13 @@ class SwarmManager:
         self._telegram_update_task: Optional[asyncio.Task] = None
 
         from archangel.agents.swarm.reporter import TelegramSwarmReporter
-        # Initialize reporter; auto-enable if credentials exist or explicitly requested via --telegram
-        reporter_candidate = TelegramSwarmReporter()
-        if self.telegram_enabled or reporter_candidate.enabled:
-            self.telegram_reporter = reporter_candidate
+        # Initialize reporter ONLY if telegram broadcast is explicitly enabled and credentials exist
+        if self.telegram_enabled:
+            reporter_candidate = TelegramSwarmReporter()
+            if reporter_candidate.enabled:
+                self.telegram_reporter = reporter_candidate
+            else:
+                self.telegram_reporter = None
         else:
             self.telegram_reporter = None
         
@@ -122,12 +125,16 @@ class SwarmManager:
 
     async def run(self) -> None:
         """Runs the agent swarm lifespan loop with clean termination and signals."""
+        import warnings
+        warnings.filterwarnings("ignore")
+
         root_logger = logging.getLogger()
         arch_logger = logging.getLogger("archangel")
         old_root_level = root_logger.level
         old_arch_level = arch_logger.level
 
         # Mute console text log output so Rich Live Panel maintains 100% clean terminal rendering
+        logging.disable(logging.CRITICAL)
         root_logger.setLevel(logging.CRITICAL)
         arch_logger.setLevel(logging.CRITICAL)
         for log_name in ["httpx", "httpcore", "urllib3", "requests", "duckduckgo_search", "curl_cffi", "twikit", "archangel.agents.scraper", "archangel.agents.swarm.workers"]:
@@ -148,6 +155,8 @@ class SwarmManager:
             "SwarmManager starting pipeline & worker pool (%d active workers, duration: %s)",
             len(target_objs), self.duration_str
         )
+
+        self.is_running = True
 
         # Start pipeline consumers BEFORE workers begin producing
         await self.pipeline.start()
@@ -194,10 +203,12 @@ class SwarmManager:
                     budget_str=self.budget_str,
                 ),
                 auto_refresh=False,
-                refresh_per_second=10,
+                refresh_per_second=1,
+                redirect_stdout=True,
+                redirect_stderr=True,
             ) as live:
                 while self.is_running:
-                    await asyncio.sleep(0.25)
+                    await asyncio.sleep(1.0)
                     elapsed = int(time.monotonic() - start_mono)
 
                     live.update(
@@ -255,6 +266,7 @@ class SwarmManager:
             logger.info("Swarm received cancellation signal.")
         finally:
             # Restore logger levels upon shutdown
+            logging.disable(logging.NOTSET)
             root_logger.setLevel(old_root_level)
             arch_logger.setLevel(old_arch_level)
             # pool.stop() internally calls pipeline.stop() for graceful drain

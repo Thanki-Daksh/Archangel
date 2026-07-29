@@ -649,22 +649,43 @@ def cmd_wipe_lead_logs(console: Console, path: str = "data/swarm_leads.log", db:
         return False
 
 
-def cmd_lead_logs(console: Console, path: str = "data/swarm_leads.log", tail: int = 50, wipe: bool = False, db: bool = False) -> bool:
-    """View or wipe the swarm lead log stream file (and optionally purge database)."""
+def cmd_lead_logs(console: Console, path: str = "data/swarm_leads.log", tail: int = 50, wipe: bool = False, db: bool = False, follow: bool = True) -> bool:
+    """View or wipe the swarm lead log stream file (and optionally watch live stream)."""
     if wipe or db:
         return cmd_wipe_lead_logs(console, path=path, db=db)
 
     lead_file = Path(path)
-    if not lead_file.exists() or lead_file.stat().st_size == 0:
-        console.print(f"[yellow]Lead log stream file '{lead_file}' is empty or does not exist yet.[/yellow]")
-        return True
 
     try:
-        lines = lead_file.read_text(encoding="utf-8", errors="ignore").splitlines()
-        display_lines = lines[-tail:] if tail and len(lines) > tail else lines
-        console.print(f"[bold cyan]📋 Swarm Lead Logs ({lead_file}) - Last {len(display_lines)} lines:[/bold cyan]\n")
-        for line in display_lines:
-            console.print(line)
+        if lead_file.exists() and lead_file.stat().st_size > 0:
+            lines = lead_file.read_text(encoding="utf-8", errors="ignore").splitlines()
+            display_lines = lines[-tail:] if tail and len(lines) > tail else lines
+            console.print(f"[bold cyan]📋 Swarm Lead Logs ({lead_file}) - Last {len(display_lines)} lines:[/bold cyan]\n")
+            for line in display_lines:
+                console.print(line)
+        else:
+            console.print(f"[bold cyan]📋 Tailing Swarm Lead Logs ({lead_file}) live...[/bold cyan]\n")
+
+        if not follow:
+            return True
+
+        console.print("\n[dim italic]👀 Watching live lead log stream in real-time... (Press Ctrl+C to exit)[/dim italic]\n")
+        
+        # Ensure file exists before opening for tail
+        lead_file.parent.mkdir(parents=True, exist_ok=True)
+        if not lead_file.exists():
+            lead_file.touch()
+
+        with lead_file.open("r", encoding="utf-8", errors="ignore") as f:
+            f.seek(0, 2)  # Seek to end of existing file
+            while True:
+                line = f.readline()
+                if line:
+                    console.print(line.rstrip())
+                else:
+                    time.sleep(0.1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Stopped live lead stream monitoring.[/yellow]")
         return True
     except Exception as exc:
         _print_error_panel(
@@ -674,8 +695,6 @@ def cmd_lead_logs(console: Console, path: str = "data/swarm_leads.log", tail: in
             suggestions=["Check file read permissions."],
         )
         return False
-
-    return True
 
 
 def cmd_purge(console: Console, confirmed: bool = False) -> bool:

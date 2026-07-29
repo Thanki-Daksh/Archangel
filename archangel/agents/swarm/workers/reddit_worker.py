@@ -28,6 +28,35 @@ class RedditWorker(BasePlatformWorker):
         super().__init__(target)
         self.after_cursor = None
 
+    def _rotate_target_endpoint(self) -> None:
+        """Rotates target URL to new timeframes, sorts, or search terms to continuously pull fresh historical leads."""
+        import re
+        import random
+        url_curr = self.target.target_url
+        if "t=day" in url_curr:
+            self.target.target_url = url_curr.replace("t=day", "t=week")
+        elif "t=week" in url_curr:
+            self.target.target_url = url_curr.replace("t=week", "t=month")
+        elif "t=month" in url_curr:
+            self.target.target_url = url_curr.replace("t=month", "t=year")
+        elif "t=year" in url_curr:
+            self.target.target_url = url_curr.replace("t=year", "t=all")
+        elif "/new/.json" in url_curr:
+            self.target.target_url = url_curr.replace("/new/.json", "/hot/.json")
+        elif "/hot/.json" in url_curr:
+            self.target.target_url = url_curr.replace("/hot/.json", "/rising/.json")
+        elif "/rising/.json" in url_curr:
+            self.target.target_url = url_curr.replace("/rising/.json", "/top/.json?t=month")
+        else:
+            sub_match = re.search(r"/r/([^/]+)/", url_curr)
+            sub_name = sub_match.group(1) if sub_match else "forhire"
+            rotations = [
+                "hiring", "looking+for+developer", "need+automation", "website",
+                "saas", "ai+automation", "python", "react", "fullstack", "contract", "freelance"
+            ]
+            q = random.choice(rotations)
+            self.target.target_url = f"https://www.reddit.com/r/{sub_name}/search/.json?q={q}&restrict_sr=1&sort=new&limit=100"
+
     async def fetch_posts(self) -> List[RawPost]:
         url = self.target.target_url
 
@@ -57,72 +86,71 @@ class RedditWorker(BasePlatformWorker):
             if reddit_token:
                 headers["Authorization"] = f"bearer {reddit_token}"
 
-        req = urllib.request.Request(fetch_url, headers=headers)
+        from archangel.agents.swarm.workers.base import get_shared_client
 
-        loop = asyncio.get_event_loop()
+        try:
+            client = get_shared_client()
+            resp = await client.get(fetch_url, headers=headers)
+            if resp.status_code == 200:
+                raw_body = resp.text
+                posts = []
 
-        def _fetch():
-            try:
-                with urllib.request.urlopen(req, timeout=4.5) as resp:
-                    if resp.status == 200:
-                        raw_body = resp.read().decode("utf-8", errors="ignore")
-                        posts = []
-
-                        if is_rss:
-                            try:
-                                tree = ET.fromstring(raw_body)
-                                channel = tree.find("channel")
-                                items = channel.findall("item") if channel is not None else tree.findall("{http://www.w3.org/2005/Atom}entry")
-                                for item in items:
-                                    title = item.findtext("title", "") or item.findtext("{http://www.w3.org/2005/Atom}title", "")
-                                    link_elem = item.find("link")
-                                    link = item.findtext("link", "")
-                                    if not link and link_elem is not None:
-                                        link = link_elem.attrib.get("href", "")
-                                    content = item.findtext("description", "") or item.findtext("{http://www.w3.org/2005/Atom}content", "")
-                                    posts.append(
-                                        RawPost(
-                                            source="reddit",
-                                            channel="reddit_rss",
-                                            author="reddit_user",
-                                            content=f"{title}\n\n{content}".strip(),
-                                            url=link,
-                                        )
-                                    )
-                            except Exception as rss_exc:
-                                logger.debug("Error parsing Reddit RSS XML: %s", rss_exc)
-                            return posts
-                        else:
-                            data = json.loads(raw_body)
-                            listing_data = data.get("data", {})
-                            self.after_cursor = listing_data.get("after")
-                            children = listing_data.get("children", [])
-                            for c in children:
-                                d = c.get("data", {})
-                                title = d.get("title", "")
-                                selftext = d.get("selftext", "")
-                                author = d.get("author", "")
-                                permalink = f"https://reddit.com{d.get('permalink', '')}"
-                                posts.append(
-                                    RawPost(
-                                        source="reddit",
-                                        channel=d.get("subreddit", "reddit"),
-                                        author=author,
-                                        content=f"{title}\n\n{selftext}".strip(),
-                                        url=permalink,
-                                    )
+                if is_rss:
+                    try:
+                        tree = ET.fromstring(raw_body)
+                        channel = tree.find("channel")
+                        items = channel.findall("item") if channel is not None else tree.findall("{http://www.w3.org/2005/Atom}entry")
+                        for item in items:
+                            title = item.findtext("title", "") or item.findtext("{http://www.w3.org/2005/Atom}title", "")
+                            link_elem = item.find("link")
+                            link = item.findtext("link", "")
+                            if not link and link_elem is not None:
+                                link = link_elem.attrib.get("href", "")
+                            content = item.findtext("description", "") or item.findtext("{http://www.w3.org/2005/Atom}content", "")
+                            posts.append(
+                                RawPost(
+                                    source="reddit",
+                                    channel="reddit_rss",
+                                    author="reddit_user",
+                                    content=f"{title}\n\n{content}".strip(),
+                                    url=link,
                                 )
-                            return posts
-                    elif resp.status in (429, 403, 500, 502, 503):
-                        self.after_cursor = None
-                        raise urllib.error.HTTPError(fetch_url, resp.status, f"HTTP {resp.status} Rate Limit / Access Denied", resp.headers, None)
-            except urllib.error.HTTPError as http_err:
-                self.after_cursor = None
-                raise http_err
-            except Exception as e:
-                self.after_cursor = None
-                raise e
-            return []
+                            )
+                    except Exception as rss_exc:
+                        logger.debug("Error parsing Reddit RSS XML: %s", rss_exc)
+                    return posts
+                else:
+                    data = resp.json()
+                    listing_data = data.get("data", {})
+                    new_after = listing_data.get("after")
+                    self.after_cursor = new_after
 
-        return await loop.run_in_executor(self.get_executor(), _fetch)
+                    # Auto-rotate timeframe, sort, or keyword when page 1 finishes so worker continuously browses older/hotter posts
+                    if not new_after:
+                        self._rotate_target_endpoint()
+
+                    children = listing_data.get("children", [])
+                    for c in children:
+                        d = c.get("data", {})
+                        title = d.get("title", "")
+                        selftext = d.get("selftext", "")
+                        author = d.get("author", "")
+                        permalink = f"https://reddit.com{d.get('permalink', '')}"
+                        posts.append(
+                            RawPost(
+                                source="reddit",
+                                channel=d.get("subreddit", "reddit"),
+                                author=author,
+                                content=f"{title}\n\n{selftext}".strip(),
+                                url=permalink,
+                            )
+                        )
+                    return posts
+            elif resp.status_code in (429, 403, 500, 502, 503):
+                self.after_cursor = None
+        except Exception as e:
+            self.after_cursor = None
+            logger.debug("RedditWorker async fetch error: %s", e)
+
+        return []
 

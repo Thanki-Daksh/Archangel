@@ -10,6 +10,16 @@ from archangel.agents.scraper import SmartScraper
 logger = logging.getLogger(__name__)
 
 
+_REACH_SEMAPHORE: asyncio.Semaphore | None = None
+
+
+def _get_reach_semaphore() -> asyncio.Semaphore:
+    global _REACH_SEMAPHORE
+    if _REACH_SEMAPHORE is None:
+        _REACH_SEMAPHORE = asyncio.Semaphore(2)
+    return _REACH_SEMAPHORE
+
+
 class AgentReachWorker(BasePlatformWorker):
     """Wrapper that executes real scrapers for multi-platform reach (X/Twitter, GitHub, HN)."""
 
@@ -25,14 +35,13 @@ class AgentReachWorker(BasePlatformWorker):
             scraper = SmartScraper()
             try:
                 if "x" in platform or "twitter" in platform:
-                    # Extract query from target URL (e.g. agent-reach:x:looking+for+developer)
                     if "agent-reach:x:" in target:
                         q_raw = target.replace("agent-reach:x:", "").strip()
                         query = " ".join(q_raw.split("+"))
                     else:
                         query = target if target.startswith("http") else f"{target} hiring OR looking"
 
-                    results = scraper.fetch_x_search_via_ddg(query, max_results=10)
+                    results = scraper.fetch_x_search_via_ddg(query, max_results=5)
                     for r in results:
                         u = r.get("url", "")
                         if u and "http" in u:
@@ -55,13 +64,13 @@ class AgentReachWorker(BasePlatformWorker):
                     else:
                         q_raw = target.replace("agent-reach:github:", "").strip()
                         q_clean = "+".join(q_raw.split())
-                        gh_url = f"https://api.github.com/search/issues?q={q_clean}+state:open&per_page=20"
+                        gh_url = f"https://api.github.com/search/issues?q={q_clean}+state:open&per_page=15"
 
                     req = urllib.request.Request(
                         gh_url,
                         headers={"User-Agent": "ArchangelSwarm/1.0", "Accept": "application/vnd.github.v3+json"}
                     )
-                    with urllib.request.urlopen(req, timeout=5.0) as resp:
+                    with urllib.request.urlopen(req, timeout=3.0) as resp:
                         if resp.status == 200:
                             data = json.loads(resp.read().decode("utf-8"))
                             for item in data.get("items", [])[:15]:
@@ -79,5 +88,12 @@ class AgentReachWorker(BasePlatformWorker):
 
             return posts
 
-        return await loop.run_in_executor(self.get_executor(), _fetch)
+        async with _get_reach_semaphore():
+            try:
+                return await asyncio.wait_for(
+                    loop.run_in_executor(self.get_executor(), _fetch),
+                    timeout=3.5
+                )
+            except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
+                return []
 

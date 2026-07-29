@@ -19,39 +19,34 @@ class RSSStreamWorker(BasePlatformWorker):
         if not url.startswith("http"):
             return []
 
-        req = urllib.request.Request(
-            url,
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ArchangelSwarm/1.0"}
-        )
+        from archangel.agents.swarm.workers.base import get_shared_client
 
-        loop = asyncio.get_event_loop()
-        def _fetch():
-            try:
-                with urllib.request.urlopen(req, timeout=2.5) as resp:
-                    if resp.status == 200:
-                        tree = ET.fromstring(resp.read().decode("utf-8", errors="ignore"))
-                        channel = tree.find("channel")
-                        if channel is None:
-                            return []
-                        posts = []
-                        for item in channel.findall("item"):
-                            title = item.findtext("title", "")
-                            desc = item.findtext("description", "")
-                            link = item.findtext("link", "")
-                            full_content = f"{title}\n\n{desc}".strip()
-                            posts.append(
-                                RawPost(
-                                    source="rss",
-                                    channel=self.target.platform,
-                                    author="rss_publisher",
-                                    content=full_content,
-                                    url=link,
-                                )
+        try:
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ArchangelSwarm/1.0"}
+            client = get_shared_client()
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                    tree = ET.fromstring(resp.text)
+                    channel = tree.find("channel")
+                    if channel is None:
+                        return []
+                    posts = []
+                    for item in channel.findall("item"):
+                        title = item.findtext("title", "")
+                        desc = item.findtext("description", "")
+                        link = item.findtext("link", "")
+                        full_content = f"{title}\n\n{desc}".strip()
+                        posts.append(
+                            RawPost(
+                                source="rss",
+                                channel=self.target.platform,
+                                author="rss_publisher",
+                                content=full_content,
+                                url=link,
                             )
-                        return posts
-            except Exception as e:
-                logger.debug("RSSStreamWorker error fetching %s: %s", url, e)
-                return []
-            return []
+                        )
+                    return posts
+        except Exception as e:
+            logger.debug("RSSStreamWorker error fetching %s: %s", url, e)
 
-        return await loop.run_in_executor(self.get_executor(), _fetch)
+        return []

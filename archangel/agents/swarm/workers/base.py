@@ -9,7 +9,34 @@ from archangel.agents.swarm.registry import SwarmTarget
 
 from concurrent.futures import ThreadPoolExecutor
 
+import httpx
+
 logger = logging.getLogger(__name__)
+
+_SHARED_HTTP_CLIENT: httpx.AsyncClient | None = None
+
+
+def get_shared_client() -> httpx.AsyncClient:
+    """Returns a shared high-performance httpx.AsyncClient with connection pooling."""
+    global _SHARED_HTTP_CLIENT
+    if _SHARED_HTTP_CLIENT is None or _SHARED_HTTP_CLIENT.is_closed:
+        _SHARED_HTTP_CLIENT = httpx.AsyncClient(
+            timeout=3.0,
+            follow_redirects=True,
+            limits=httpx.Limits(max_connections=500, max_keepalive_connections=100),
+        )
+    return _SHARED_HTTP_CLIENT
+
+
+async def close_shared_client() -> None:
+    """Gracefully closes the shared HTTP client pool."""
+    global _SHARED_HTTP_CLIENT
+    if _SHARED_HTTP_CLIENT is not None and not _SHARED_HTTP_CLIENT.is_closed:
+        try:
+            await _SHARED_HTTP_CLIENT.aclose()
+        except Exception:
+            pass
+        _SHARED_HTTP_CLIENT = None
 
 
 class BasePlatformWorker(ABC):
@@ -20,7 +47,7 @@ class BasePlatformWorker(ABC):
     @classmethod
     def get_executor(cls) -> ThreadPoolExecutor:
         if cls._shared_executor is None:
-            cls._shared_executor = ThreadPoolExecutor(max_workers=128, thread_name_prefix="swarm-net")
+            cls._shared_executor = ThreadPoolExecutor(max_workers=16, thread_name_prefix="swarm-net")
         return cls._shared_executor
 
     def __init__(self, target: SwarmTarget) -> None:
@@ -37,6 +64,15 @@ class BasePlatformWorker(ABC):
         """Main execution loop running non-blocking with exponential backoff on rate limits."""
         self.is_running = True
         logger.debug("Started %s worker task for %s", self.target.platform, self.target.target_url)
+
+        import random
+
+        # Micro-stagger startup so 1000 workers don't slam socket pool in the same millisecond
+        try:
+            await asyncio.sleep(random.uniform(0.01, 0.4))
+        except asyncio.CancelledError:
+            self.is_running = False
+            return
 
         backoff = 1.0
         while self.is_running:
@@ -65,7 +101,7 @@ class BasePlatformWorker(ABC):
                 break
 
             # Responsive poll sleep check
-            poll_steps = int(self.target.poll_interval / 0.5) or 1
+            poll_steps = int(self.target.poll_interval / 1.0) or 1
             step_duration = self.target.poll_interval / poll_steps
             for _ in range(poll_steps):
                 if not self.is_running:

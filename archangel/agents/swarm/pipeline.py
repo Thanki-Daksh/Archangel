@@ -112,23 +112,31 @@ class LeadProcessor:
     async def _consume_loop(self) -> None:
         while self._running:
             try:
-                post = await asyncio.wait_for(
-                    self.discovery_queue.get(), timeout=1.0
+                first_item = await asyncio.wait_for(
+                    self.discovery_queue.get(), timeout=0.1
                 )
-            except asyncio.TimeoutError:
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                if not self._running:
+                    break
                 continue
-            except asyncio.CancelledError:
-                break
 
-            try:
-                self.processed_count += 1
-                await self._process_post(post)
-                if self.processed_count % 10 == 0:
-                    await asyncio.sleep(0)
-            except Exception as exc:
-                logger.error("LeadProcessor error processing post: %s", exc)
-            finally:
-                self.discovery_queue.task_done()
+            posts = [first_item]
+            while not self.discovery_queue.empty() and len(posts) < 200:
+                try:
+                    posts.append(self.discovery_queue.get_nowait())
+                except asyncio.QueueEmpty:
+                    break
+
+            for post in posts:
+                try:
+                    self.processed_count += 1
+                    await self._process_post(post)
+                except Exception as exc:
+                    logger.error("LeadProcessor error processing post: %s", exc)
+                finally:
+                    self.discovery_queue.task_done()
+
+            await asyncio.sleep(0)
 
     async def _process_post(self, post: RawPost) -> None:
         # 1. Fast-path URL dedup with LRU eviction
@@ -403,29 +411,47 @@ class EnrichmentProcessor:
 
     async def _consume_loop(self) -> None:
         loop = asyncio.get_event_loop()
+        if not hasattr(self, "_enrich_executor"):
+            from concurrent.futures import ThreadPoolExecutor
+            self._enrich_executor = ThreadPoolExecutor(max_workers=16, thread_name_prefix="enrich-worker")
+
         while self._running:
             try:
-                item = await asyncio.wait_for(
-                    self.enrichment_queue.get(), timeout=1.0
+                first_item = await asyncio.wait_for(
+                    self.enrichment_queue.get(), timeout=0.05
                 )
             except asyncio.TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
 
-            post, eval_dict, row_id = item if len(item) == 3 else (item[0], {}, item[1])
+            items = [first_item]
+            self.enrichment_queue.task_done()
 
-            try:
-                if not hasattr(self, "_enrich_executor"):
-                    from concurrent.futures import ThreadPoolExecutor
-                    self._enrich_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="enrich-worker")
-                
-                # Run full enrichment -> returns canonical Lead object
-                lead_obj = await loop.run_in_executor(
-                    self._enrich_executor, self.agent._process_enrichment, post, row_id, eval_dict
-                )
-                
-                # Format complete CRM report and emit to data/swarm_leads.log if meeting quality thresholds
+            # Burst drain up to 100 queued items for high-speed parallel batch enrichment & bulk file flush
+            while not self.enrichment_queue.empty() and len(items) < 100:
+                try:
+                    nxt = self.enrichment_queue.get_nowait()
+                    items.append(nxt)
+                    self.enrichment_queue.task_done()
+                except asyncio.QueueEmpty:
+                    break
+
+            async def _process_one(itm):
+                post, eval_dict, row_id = itm if len(itm) == 3 else (itm[0], {}, itm[1])
+                try:
+                    lead_obj = await loop.run_in_executor(
+                        self._enrich_executor, self.agent._process_enrichment, post, row_id, eval_dict
+                    )
+                    return (lead_obj, row_id)
+                except Exception as exc:
+                    logger.error("EnrichmentProcessor failed for lead %s: %s", row_id, exc)
+                    return (None, row_id)
+
+            results = await asyncio.gather(*[_process_one(it) for it in items])
+
+            report_blocks = []
+            for lead_obj, row_id in results:
                 if lead_obj:
                     readiness = float(getattr(lead_obj, "sales_readiness", getattr(lead_obj, "sales_readiness_score", 0.0)) or 0.0)
                     priority = str(getattr(lead_obj, "priority", getattr(lead_obj, "priority_tier", "LOW")) or "LOW").upper()
@@ -433,25 +459,18 @@ class EnrichmentProcessor:
                     min_p_val = PRIORITY_ORDER.get(self.min_priority, 0)
                     lead_p_val = PRIORITY_ORDER.get(priority, 1)
 
-                    if readiness < self.min_score or lead_p_val < min_p_val:
-                        logger.debug(
-                            "Suppressed lead %s due to quality threshold (Readiness: %.1f < %.1f, Priority: %s < %s)",
-                            row_id, readiness, self.min_score, priority, self.min_priority
-                        )
-                    else:
+                    if readiness >= self.min_score and lead_p_val >= min_p_val:
                         self.processed_count += 1
                         report_block = format_lead_block(lead_obj, lead_num=self.processed_count)
-                        self.file_writer.write_batch([report_block])
-                        
-                        # Emit lead.saved event for Telegram / CLI consumers
+                        report_blocks.append(report_block)
+
                         self.agent.event_bus.publish("lead.saved", {
                             "lead": lead_obj,
                             "raw_post_id": row_id,
                         })
-            except Exception as e:
-                logger.error("EnrichmentProcessor failed for lead %s: %s", row_id, e)
-            finally:
-                self.enrichment_queue.task_done()
+
+            if report_blocks:
+                self.file_writer.write_batch(report_blocks)
 
 
 # ---------------------------------------------------------------------------

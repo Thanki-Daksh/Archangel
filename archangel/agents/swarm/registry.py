@@ -16,13 +16,16 @@ class SwarmTarget:
     poll_interval: int = 15
 
 
-# Expanded 25 Tech & Job Subreddits
+# Targeted SaaS, AI Automation, Full Stack & Web Subreddits
 DEFAULT_SUBREDDITS = [
-    "forhire", "pythonjobs", "freelance_forhire", "jobbit", "reactjs",
-    "webdev", "flutterdev", "golang", "rust", "node", "typescript",
-    "django", "fastapi", "remotejs", "workonline", "remotejobs",
-    "devops", "sysadmin", "softwaredevelopment", "aijobs", "machinelearning",
-    "dataengineering", "design_jobs", "hireanartist", "jobs"
+    # Core Dev & Freelance
+    "forhire", "freelance_forhire", "jobbit", "remotejobs", "workonline", "remotejs", "jobs",
+    # Full Stack & Web
+    "webdev", "reactjs", "node", "typescript", "pythonjobs", "django", "fastapi", "golang", "rust", "flutterdev",
+    # SaaS & Business Systems
+    "saas", "startups", "softwaredevelopment", "sideproject", "entrepreneur", "smallbusiness",
+    # AI Automation & AI Workflows
+    "aijobs", "machinelearning", "artificial", "dataengineering", "automation", "python", "devops"
 ]
 
 # Expanded 30 RSS & Job Board Feeds
@@ -40,13 +43,20 @@ DEFAULT_RSS_FEEDS = [
     "https://hnrss.org/jobs",
 ]
 
-# 25 High-Yield X / Twitter Search Queries
+# Targeted SaaS, AI Automation, Full Stack & Web Search Vectors
 DEFAULT_X_QUERIES = [
-    "hiring+developer", "looking+for+python", "seeking+engineer",
-    "need+freelancer", "contract+developer", "hiring+fastapi",
-    "hiring+react", "hiring+nextjs", "hiring+bot+developer",
-    "hiring+fullstack", "hiring+web+scraper", "freelance+python",
-    "looking+for+freelancer", "hiring+ai+engineer", "seeking+bot+dev",
+    # Full Stack & Web Sites
+    "hiring+fullstack", "hiring+developer", "looking+for+developer", "hiring+web+developer",
+    "hiring+react", "hiring+nextjs", "hiring+python", "hiring+fastapi", "hiring+django",
+    "need+freelance+developer", "contract+developer", "building+website", "need+developer",
+    # SaaS & Startup Systems
+    "hiring+saas+developer", "building+saas", "need+saas+developer", "looking+for+saas+dev",
+    "hiring+cto", "looking+for+tech+cofounder", "saas+mvp+developer",
+    # AI Automation & AI Workflows
+    "hiring+ai+engineer", "need+ai+automation", "hiring+automation+engineer",
+    "building+ai+agent", "need+ai+workflow", "hiring+llm+developer",
+    "looking+for+ai+developer", "need+python+automation", "hiring+n8n+developer",
+    "hiring+langchain+dev", "hiring+scraping+developer", "need+bot+developer"
 ]
 
 
@@ -103,27 +113,32 @@ class PlatformRegistry:
             for rss in DEFAULT_RSS_FEEDS:
                 resolved.append(SwarmTarget("rss", rss, "rss", 3))
 
-        # If default or "all", expand into 170+ parallel streams
+        # If default or "all", expand into 300+ parallel unique streams
         if not raw_list or "all" in [x.lower() for x in raw_list]:
-            # 1. 25 Subreddits x 5 sorts/feeds = 125 Reddit Streams
+            # 1. 27 Subreddits x 10 unique sorts/timeframes/searches = 270 Reddit Streams
             for sub in DEFAULT_SUBREDDITS:
-                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/new/.json?limit=100", "reddit", 2))
-                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/hot/.json?limit=100", "reddit", 2))
-                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/rising/.json?limit=100", "reddit", 2))
-                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/top/.json?t=day&limit=100", "reddit", 2))
-                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/search/.json?q=hiring&sort=new&limit=100", "reddit", 2))
+                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/new/.json?limit=100", "reddit", 3))
+                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/hot/.json?limit=100", "reddit", 3))
+                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/rising/.json?limit=100", "reddit", 3))
+                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/top/.json?t=day&limit=100", "reddit", 3))
+                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/top/.json?t=week&limit=100", "reddit", 3))
+                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/top/.json?t=month&limit=100", "reddit", 3))
+                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/top/.json?t=year&limit=100", "reddit", 3))
+                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/search/.json?q=hiring&sort=new&limit=100", "reddit", 3))
+                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/search/.json?q=looking+for+developer&sort=new&limit=100", "reddit", 3))
+                resolved.append(SwarmTarget("reddit", f"https://www.reddit.com/r/{sub}/search/.json?q=need+automation&sort=new&limit=100", "reddit", 3))
 
             # 2. 30 RSS Feeds
             for rss in DEFAULT_RSS_FEEDS:
-                resolved.append(SwarmTarget("rss", rss, "rss", 3))
+                resolved.append(SwarmTarget("rss", rss, "rss", 4))
 
             # 3. 25 X Queries
             for q in DEFAULT_X_QUERIES:
-                resolved.append(SwarmTarget("x", f"agent-reach:x:{q}", "reach", 2))
+                resolved.append(SwarmTarget("x", f"agent-reach:x:{q}", "reach", 4))
 
-            # 4. 10 GitHub & HackerNews Queries
+            # 4. GitHub Queries
             for label in ["hiring", "freelance", "contract", "help-wanted", "remote"]:
-                resolved.append(SwarmTarget("github", f"https://api.github.com/search/issues?q=label:{label}+state:open&per_page=100", "reach", 3))
+                resolved.append(SwarmTarget("github", f"https://api.github.com/search/issues?q=label:{label}+state:open&per_page=100", "reach", 4))
 
             logger.info("Resolved MEGA Swarm target matrix (%d active parallel streams)", len(resolved))
             return resolved
