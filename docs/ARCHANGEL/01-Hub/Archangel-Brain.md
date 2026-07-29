@@ -1,4 +1,8 @@
-# 🧠 Archangel Master Brain & Knowledge Base
+# 🧠 Archangel Master Brain & System Architecture
+> **Created**: 2026-07-29 | **Last Updated**: 2026-07-29 | **Version**: 2.1.0  
+> **Hub Cross-Links**: [[Index]] | [[Tasks]] | [[Decisions]] | [[Daily-Log]]
+
+---
 
 ## 1. System Identity & Mission
 **Archangel** is an autonomous 1,000-worker client acquisition & lead discovery swarm built specifically for high-ticket software developers, agency owners, and AI engineers.
@@ -45,16 +49,23 @@ graph TD
 - **Queue Throughput**: `LeadProcessor` burst-drains up to 200 posts per tick at **10,000+ posts/sec**.
 - **Persisted Storage**: Writes qualified leads to SQLite WAL (`data/swarm_leads.db`) and rotating micro-logs (`data/leads_parts/swarm_leads_part_001.log`).
 
-### D. Interactive Telegram Bot (`archangel/agents/swarm/telegram_bot.py`)
+### D. Live Worker Telemetry Stream (`archangel/agents/swarm/logger.py`)
+- **50 FPS Telemetry Stream**: `SwarmTelemetryLogger` outputs real-time `info : GET`, `info : OK 42ms`, `info : MATCH` lines to `data/swarm_activity.log`.
+- **Tailing Command**: Executed via `aa logs -v` with infinite terminal scrolling.
+
+### E. Interactive Telegram Bot & Natural Language Launcher (`archangel/agents/swarm/telegram_bot.py`)
 - **Action Cards**: Inline buttons `[ 💬 DM Client ]`, `[ ⚡ Quick Pitch ]`, `[ 📓 Save to Obsidian ]`, `[ ❌ Dismiss ]`.
 - **Command Parser**: Recognizes natural language prompts like *"spin an agent swarm up with 1000 workers, my price is 15k inr and intermediate level"* and instantly triggers `SwarmManager.run(max_workers=1000, allowed_tiers={'intermediate'}, min_budget='15kinr')`.
+- **Personal Instructions Store**: Managed by `PersonalInstructionsStore` ([personal_instructions.py](file:///d:/Daksh/Business/Archangel/archangel/config/personal_instructions.py)) reading `data/user_instructions.json`.
 
 ---
 
-## 4. Telegram Bot System Rules & Persona
+## 4. Telegram Bot System Rules & Persona Grounding
 
 > [!IMPORTANT]
-> **CRITICAL RULE**: The bot MUST NEVER act like a generic AI/cloud consultant or ask "What's the use case?" / "What platform?". The bot IS Archangel's live command center.
+> **CRITICAL SYSTEM RULE**: The bot MUST NEVER act like a generic AI/cloud consultant or ask "What's the use case?" / "What cloud platform?". The bot IS Archangel's live command center.
+> 
+> Grounding prompt: [system_prompt.py](file:///d:/Daksh/Business/Archangel/archangel/config/system_prompt.py) (`ARCHANGEL_BOT_SYSTEM_PROMPT`).
 > 
 > When the user asks to start/run the swarm, it must immediately execute the command and return:
 > `⚔️ Archangel Agent Swarm Launched! 1,000 Workers Active | Min Budget: ₹15,000 | Tiers: INTERMEDIATE`
